@@ -5,10 +5,15 @@
 
 .main {
   flex: 1;
-  margin-left: var(--sidebar-width);
   padding: 40px;
   display: flex;
   flex-direction: column;
+}
+
+.mainContent {
+  display: flex;
+  gap: 24px;
+  flex: 1;
 }
 
 .headerContainer {
@@ -16,6 +21,27 @@
   gap: 20px;
   margin-bottom: 40px;
   align-items: center;
+}
+
+.siteLogo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex-shrink: 0;
+  width: var(--sidebar-width);
+}
+
+.siteLogo svg {
+  height: 72px;
+  width: auto;
+}
+
+.siteLogo span {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--primary);
+  white-space: nowrap;
 }
 
 .searchBar {

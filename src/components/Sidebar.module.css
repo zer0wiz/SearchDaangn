@@ -1,25 +1,95 @@
 .sidebar {
     width: var(--sidebar-width);
+    min-width: var(--sidebar-width);
     background-color: var(--secondary);
-    border-right: 1px solid var(--border);
-    height: 100vh;
-    position: fixed;
-    left: 0;
-    top: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
     padding: 20px;
     overflow-y: auto;
+    height: fit-content;
+    position: sticky;
+    top: 20px;
+}
+
+/* 필터 섹션 */
+.filterSection {
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+}
+
+.filterHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.filterHeader h2 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--foreground);
+}
+
+.resetBtn {
+    font-size: 0.75rem;
+    color: var(--primary);
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.resetBtn:hover {
+    background-color: rgba(255, 138, 61, 0.1);
+}
+
+.filterLabel {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    padding: 8px 12px;
+    background-color: rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+    transition: background-color 0.2s;
+}
+
+.filterLabel:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+.filterLabel span {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.filterCheckbox {
+    accent-color: var(--primary);
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
 }
 
 .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 24px;
     padding-bottom: 12px;
     border-bottom: 1px solid var(--border);
 }
 
 .header h2 {
-    font-size: 1.2rem;
+    font-size: 1rem;
     font-weight: 600;
     color: var(--foreground);
+}
+
+.totalCount {
+    font-size: 0.85rem;
+    color: var(--primary);
+    font-weight: 600;
 }
 
 .list {
@@ -58,8 +128,18 @@
 }
 
 .text {
-    font-size: 0.95rem;
+    font-size: 0.85rem;
     color: var(--text-secondary);
+}
+
+.count {
+    font-size: 0.7rem;
+    color: var(--primary);
+    background-color: rgba(255, 138, 61, 0.15);
+    padding: 2px 6px;
+    border-radius: 10px;
+    margin-left: auto;
+    font-weight: 600;
 }
 
 .input:checked+.text {
