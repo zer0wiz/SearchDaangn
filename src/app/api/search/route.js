@@ -27,28 +27,34 @@ export async function POST(request) {
                 const $ = cheerio.load(response.data);
                 const items = [];
 
-                // Parse article elements
-                $('article').each((_, element) => {
-                    const $el = $(element);
-
-                    const title = $el.find('.card-title').text().trim();
-                    const price = $el.find('.card-price').text().trim();
-                    const regionName = $el.find('.card-region-name').text().trim();
-                    const link = $el.find('a.card-link').attr('href');
-                    const img = $el.find('img').attr('src');
-
-                    if (title && price) {
-                        items.push({
-                            id: link ? link.split('/').pop() : Math.random().toString(), // Extract ID from link
-                            title,
-                            price,
-                            regionName,
-                            img,
-                            link: link ? `https://www.daangn.com${link}` : null,
-                            originalRegion: region // Tag with the region that found this
-                        });
+                // Parse JSON-LD structured data
+                const jsonLdScript = $('script[type="application/ld+json"]').html();
+                if (jsonLdScript) {
+                    try {
+                        const jsonLdData = JSON.parse(jsonLdScript);
+                        if (jsonLdData.itemListElement && Array.isArray(jsonLdData.itemListElement)) {
+                            jsonLdData.itemListElement.forEach((listItem) => {
+                                const product = listItem.item;
+                                if (product && product.name && product.url) {
+                                    const price = product.offers?.price 
+                                        ? `${Number(product.offers.price).toLocaleString()}원`
+                                        : '';
+                                    items.push({
+                                        id: product.url.split('/').filter(Boolean).pop() || Math.random().toString(),
+                                        title: product.name,
+                                        price,
+                                        regionName: region.name3,
+                                        img: product.image,
+                                        link: product.url,
+                                        originalRegion: region
+                                    });
+                                }
+                            });
+                        }
+                    } catch (parseError) {
+                        console.error('JSON-LD parsing error:', parseError);
                     }
-                });
+                }
 
                 return items;
             } catch (err) {
@@ -62,8 +68,8 @@ export async function POST(request) {
         // Flatten results
         const allItems = results.flat();
 
-        // Deduplicate items based on link/id (same item might appear in adjacent regions)
-        const uniqueItems = Array.from(new Map(allItems.map(item => [item.link, item])).values());
+        // Deduplicate items based on link (same item might appear in adjacent regions)
+        const uniqueItems = Array.from(new Map(allItems.map(item => [item.link || item.id, item])).values());
 
         return NextResponse.json({ items: uniqueItems });
 
