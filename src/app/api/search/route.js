@@ -36,7 +36,7 @@ export async function POST(request) {
                             jsonLdData.itemListElement.forEach((listItem) => {
                                 const product = listItem.item;
                                 if (product && product.name && product.url) {
-                                    const price = product.offers?.price 
+                                    const price = product.offers?.price !== undefined && product.offers?.price !== null
                                         ? `${Number(product.offers.price).toLocaleString()}원`
                                         : '';
                                     items.push({
