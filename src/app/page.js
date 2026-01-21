@@ -22,6 +22,8 @@ export default function Home() {
   const [showOnlyAvailable, setShowOnlyAvailable] = useState(true); // 거래 가능만 보기
   const [regionStatus, setRegionStatus] = useState({}); // 지역별 상태 관리
   const [viewSize, setViewSize] = useState('medium'); // 보기 크기: small, medium, large
+  const [includeTags, setIncludeTags] = useState([]); // 포함할 단어
+  const [excludeTags, setExcludeTags] = useState([]); // 제외할 단어
   const searchAbortRef = useRef(null); // 검색 중단용
 
   // Load cookies on mount
@@ -41,6 +43,18 @@ export default function Home() {
     // 거래 가능만 보기 필터
     if (showOnlyAvailable && item.status && item.status !== '판매중') {
       return false;
+    }
+    // 포함할 단어 필터 (모든 단어가 포함되어야 함)
+    if (includeTags.length > 0) {
+      const title = item.title?.toLowerCase() || '';
+      const hasAllInclude = includeTags.every(tag => title.includes(tag.toLowerCase()));
+      if (!hasAllInclude) return false;
+    }
+    // 제외할 단어 필터 (하나라도 포함되면 제외)
+    if (excludeTags.length > 0) {
+      const title = item.title?.toLowerCase() || '';
+      const hasAnyExclude = excludeTags.some(tag => title.includes(tag.toLowerCase()));
+      if (hasAnyExclude) return false;
     }
     return regionMatch;
   });
@@ -247,6 +261,10 @@ export default function Home() {
             onToggleAvailable={() => setShowOnlyAvailable(!showOnlyAvailable)}
             onResetFilter={handleResetFilter}
             regionCounts={regionCounts}
+            includeTags={includeTags}
+            excludeTags={excludeTags}
+            onIncludeTagsChange={setIncludeTags}
+            onExcludeTagsChange={setExcludeTags}
             regionStatus={regionStatus}
             onRefreshRegion={handleRefreshRegion}
           />
