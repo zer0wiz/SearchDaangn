@@ -1,12 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import styles from './page.module.css';
 import Sidebar from '@/components/Sidebar';
 import RegionPopup from '@/components/RegionPopup';
 import ProductCard from '@/components/ProductCard';
 import { getSelectedRegions, setSelectedRegions as saveCookie } from '@/utils/cookie';
+
+// 지역 상태: pending(대기), loading(로딩), completed(완료)
+// regionStatus: { [regionId]: { status: 'pending'|'loading'|'completed', completedAt: Date|null } }
 
 export default function Home() {
   const [selectedRegions, setSelectedRegions] = useState([]);
@@ -17,6 +20,8 @@ export default function Home() {
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [showOnlyAvailable, setShowOnlyAvailable] = useState(true); // 거래 가능만 보기
+  const [regionStatus, setRegionStatus] = useState({}); // 지역별 상태 관리
+  const searchAbortRef = useRef(null); // 검색 중단용
 
   // Load cookies on mount
   useEffect(() => {
@@ -51,6 +56,62 @@ export default function Home() {
     setShowOnlyAvailable(true);
   };
 
+  // 단일 지역 검색 함수
+  const searchSingleRegion = async (region, searchKeyword) => {
+    // 로딩 상태로 변경
+    setRegionStatus(prev => ({
+      ...prev,
+      [region.id]: { status: 'loading', completedAt: null }
+    }));
+
+    try {
+      const { data } = await axios.post('/api/search-single', {
+        region,
+        keyword: searchKeyword,
+      });
+
+      // 해당 지역의 기존 결과 제거 후 새 결과 추가
+      setSearchResults(prev => {
+        const filtered = prev.filter(item => item.originalRegion?.id !== region.id);
+        return [...filtered, ...(data.items || [])];
+      });
+
+      // 완료 상태로 변경
+      setRegionStatus(prev => ({
+        ...prev,
+        [region.id]: { status: 'completed', completedAt: new Date() }
+      }));
+
+      return data.items || [];
+    } catch (err) {
+      console.error(`Error searching region ${region.name3}:`, err);
+      // 에러 시에도 완료 처리 (빈 결과)
+      setRegionStatus(prev => ({
+        ...prev,
+        [region.id]: { status: 'completed', completedAt: new Date(), error: true }
+      }));
+      return [];
+    }
+  };
+
+  // 개별 지역 리프레쉬
+  const handleRefreshRegion = async (regionId) => {
+    if (!keyword.trim()) {
+      alert('검색어를 먼저 입력해주세요.');
+      return;
+    }
+    const region = selectedRegions.find(r => r.id === regionId);
+    if (region) {
+      await searchSingleRegion(region, keyword);
+    }
+  };
+
+  // 지연 함수
+  const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+  const getRandomDelay = (min = 800, max = 3000) => {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  };
+
   const handleSearch = async (e) => {
     e && e.preventDefault();
     if (!keyword.trim()) return;
@@ -60,20 +121,29 @@ export default function Home() {
       return;
     }
 
+    // 검색 시작 시 모든 지역을 pending 상태로 초기화
+    const initialStatus = {};
+    selectedRegions.forEach(region => {
+      initialStatus[region.id] = { status: 'pending', completedAt: null };
+    });
+    setRegionStatus(initialStatus);
+
     setLoading(true);
     setHasSearched(true);
-    try {
-      const { data } = await axios.post('/api/search', {
-        regions: selectedRegions,
-        keyword: keyword,
-      });
-      setSearchResults(data.items || []);
-    } catch (err) {
-      console.error(err);
-      alert('검색 중 오류가 발생했습니다.');
-    } finally {
-      setLoading(false);
+    setSearchResults([]); // 기존 결과 초기화
+
+    // 순차적으로 각 지역 검색
+    for (let i = 0; i < selectedRegions.length; i++) {
+      const region = selectedRegions[i];
+      await searchSingleRegion(region, keyword);
+      
+      // 마지막 요청이 아니면 딜레이
+      if (i < selectedRegions.length - 1) {
+        await delay(getRandomDelay());
+      }
     }
+
+    setLoading(false);
   };
 
   const handleSaveRegions = (newRegions) => {
@@ -162,6 +232,8 @@ export default function Home() {
             onToggleAvailable={() => setShowOnlyAvailable(!showOnlyAvailable)}
             onResetFilter={handleResetFilter}
             regionCounts={regionCounts}
+            regionStatus={regionStatus}
+            onRefreshRegion={handleRefreshRegion}
           />
           <div className={styles.content}>
           {loading && <div className={styles.loading}>당근마켓에서 열심히 찾는 중... 🥕</div>}

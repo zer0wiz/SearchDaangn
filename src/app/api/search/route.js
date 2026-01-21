@@ -2,6 +2,14 @@ import { NextResponse } from 'next/server';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 
+// 지연 시간을 주는 유틸리티 함수
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// 랜덤 딜레이 생성 (min ~ max ms)
+const getRandomDelay = (min = 800, max = 3000) => {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+};
+
 export async function POST(request) {
     try {
         const { regions, keyword } = await request.json();
@@ -10,7 +18,12 @@ export async function POST(request) {
             return NextResponse.json({ items: [] });
         }
 
-        const promises = regions.map(async (region) => {
+        const results = [];
+
+        // 순차 처리: 한 번에 하나씩 요청하여 Rate Limiting 방지
+        for (let i = 0; i < regions.length; i++) {
+            const region = regions[i];
+            
             try {
                 // Construct URL: https://www.daangn.com/kr/buy-sell/?in={name3}-{id}&only_on_sale=true&search={keyword}
                 const locationQuery = `${region.name3}-${region.id}`;
@@ -56,14 +69,17 @@ export async function POST(request) {
                     }
                 }
 
-                return items;
+                results.push(items);
             } catch (err) {
                 console.error(`Error scraping for region ${region.name3}:`, err);
-                return [];
+                results.push([]);
             }
-        });
 
-        const results = await Promise.all(promises);
+            // 마지막 요청이 아니면 랜덤 딜레이 적용 (0.8초 ~ 3초)
+            if (i < regions.length - 1) {
+                await delay(getRandomDelay());
+            }
+        }
 
         // Flatten results
         const allItems = results.flat();
