@@ -1,11 +1,26 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import styles from './Sidebar.module.css';
 
-// 시간 포맷 함수 (HH:MM:SS)
-const formatTime = (date) => {
+// 상대 시간 포맷 함수
+const formatRelativeTime = (date) => {
     if (!date) return '';
+    const now = new Date();
     const d = new Date(date);
-    return d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const diffMs = now - d;
+    const diffSec = Math.floor(diffMs / 1000);
+    const diffMin = Math.floor(diffSec / 60);
+    const diffHour = Math.floor(diffMin / 60);
+    const diffDay = Math.floor(diffHour / 24);
+
+    if (diffSec < 60) {
+        return '방금전';
+    } else if (diffMin < 60) {
+        return `${diffMin}분전`;
+    } else if (diffHour < 24) {
+        return `${diffHour}시간전`;
+    } else {
+        return `${diffDay}일전`;
+    }
 };
 
 // 로딩 스피너 컴포넌트
@@ -43,6 +58,15 @@ export default function Sidebar({
     const [showExcludeInput, setShowExcludeInput] = useState(false);
     const [includeInputValue, setIncludeInputValue] = useState('');
     const [excludeInputValue, setExcludeInputValue] = useState('');
+    const [, setTimeUpdate] = useState(0);
+
+    // 30초마다 상대 시간 업데이트
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setTimeUpdate(prev => prev + 1);
+        }, 30000);
+        return () => clearInterval(interval);
+    }, []);
     // 선택된 지역들의 전체 건수 계산
     const totalCount = selectedRegions?.reduce((sum, region) => {
         return sum + (regionCounts[region.id] || 0);
@@ -230,53 +254,64 @@ export default function Sidebar({
                     
                     return (
                         <li key={region.id} className={styles.item}>
-                            <label className={styles.label}>
+                            <div className={styles.itemContent}>
+                                <label className={styles.label}>
                                 <input
                                     type="checkbox"
                                     checked={activeRegionIds.includes(region.id)}
                                     onChange={() => onToggle(region.id)}
                                     className={styles.checkbox}
                                 />
-                                <span className={styles.text}>
-                                    {region.name2} {region.name3}
-                                </span>
-                                {regionCounts[region.id] > 0 && (
-                                    <span className={styles.count}>{regionCounts[region.id]}</span>
-                                )}
-                            </label>
-                            <div className={styles.statusArea}>
-                                {/* 상태 표시 */}
-                                {isPending && (
-                                    <span className={styles.statusPending}>대기</span>
-                                )}
-                                {isLoading && (
-                                    <span className={styles.statusLoading}>
-                                        <LoadingSpinner />
+                                    <span className={styles.text}>
+                                        {region.name2} {region.name3}
                                     </span>
-                                )}
-                                {isCompleted && status.completedAt && (
-                                    <span className={styles.statusCompleted}>
-                                        {formatTime(status.completedAt)}
-                                    </span>
-                                )}
-                                {/* 리프레쉬 버튼 */}
+                                    {regionCounts[region.id] > 0 && (
+                                        <span className={styles.count}>{regionCounts[region.id]}</span>
+                                    )}
+                                </label>
+                                <div className={styles.statusArea}>
+                                    {/* 상태 표시 */}
+                                    {isPending && (
+                                        <span className={styles.statusPending}>대기</span>
+                                    )}
+                                    {isLoading && (
+                                        <span className={styles.statusLoading}>
+                                            <LoadingSpinner />
+                                        </span>
+                                    )}
+                                    {isCompleted && status.completedAt && (
+                                        <div className={styles.statusCompletedWrapper}>
+                                            <span className={styles.statusCompleted}>
+                                                완료 : {formatRelativeTime(status.completedAt)}
+                                            </span>
+                                            <button
+                                                className={styles.refreshBtn}
+                                                onClick={() => onRefreshRegion(region.id)}
+                                                disabled={isLoading}
+                                                aria-label="Refresh region"
+                                                title="다시 검색"
+                                            >
+                                                <RefreshIcon />
+                                            </button>
+                                        </div>
+                                    )}
+                                    
+                                </div>
+                            </div>
+                            <div className={styles.separator}></div>
+                            <div className={styles.buttonWrapper}>
                                 <button
-                                    className={styles.refreshBtn}
-                                    onClick={() => onRefreshRegion(region.id)}
-                                    disabled={isLoading}
-                                    aria-label="Refresh region"
-                                    title="다시 검색"
+                                    className={styles.optionBtn}
+                                    onClick={() => onRemove(region.id)}
+                                    aria-label="Options"
                                 >
-                                    <RefreshIcon />
+                                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                        <circle cx="8" cy="3" r="1.5" />
+                                        <circle cx="8" cy="8" r="1.5" />
+                                        <circle cx="8" cy="13" r="1.5" />
+                                    </svg>
                                 </button>
                             </div>
-                            <button
-                                className={styles.removeBtn}
-                                onClick={() => onRemove(region.id)}
-                                aria-label="Remove region"
-                            >
-                                ×
-                            </button>
                         </li>
                     );
                 })}

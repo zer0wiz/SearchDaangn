@@ -1,8 +1,9 @@
 import styles from './ProductCard.module.css';
 
-export default function ProductCard({ item }) {
+export default function ProductCard({ item, size = 'medium' }) {
+    const sizeClass = styles[`card${size.charAt(0).toUpperCase() + size.slice(1)}`];
     return (
-        <a href={item.link} target="_blank" rel="noopener noreferrer" className={styles.card}>
+        <a href={item.link} target="_blank" rel="noopener noreferrer" className={`${styles.card} ${sizeClass}`}>
             <div className={styles.imageWrapper}>
                 <img src={item.img} alt={item.title} className={styles.image} loading="lazy" />
             </div>

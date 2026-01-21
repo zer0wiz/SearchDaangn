@@ -1,28 +1,30 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useParams } from 'next/navigation';
 import axios from 'axios';
-import styles from './page.module.css';
+import styles from '../../page.module.css';
 import Sidebar from '@/components/Sidebar';
 import RegionPopup from '@/components/RegionPopup';
 import ProductCard from '@/components/ProductCard';
 import { getSelectedRegions, setSelectedRegions as saveCookie } from '@/utils/cookie';
 
-// 지역 상태: pending(대기), loading(로딩), completed(완료)
-// regionStatus: { [regionId]: { status: 'pending'|'loading'|'completed', completedAt: Date|null } }
-
-export default function Home() {
+export default function SearchPage() {
+  const params = useParams();
+  const urlKeyword = decodeURIComponent(params.keyword || '');
+  
   const [selectedRegions, setSelectedRegions] = useState([]);
-  const [activeRegionIds, setActiveRegionIds] = useState([]); // IDs of checked regions
-  const [keyword, setKeyword] = useState('');
+  const [activeRegionIds, setActiveRegionIds] = useState([]);
+  const [keyword, setKeyword] = useState(urlKeyword);
   const [searchResults, setSearchResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
-  const [showOnlyAvailable, setShowOnlyAvailable] = useState(true); // 거래 가능만 보기
-  const [regionStatus, setRegionStatus] = useState({}); // 지역별 상태 관리
+  const [showOnlyAvailable, setShowOnlyAvailable] = useState(true);
+  const [regionStatus, setRegionStatus] = useState({});
   const [viewSize, setViewSize] = useState('medium'); // 보기 크기: small, medium, large
-  const searchAbortRef = useRef(null); // 검색 중단용
+  const searchAbortRef = useRef(null);
+  const hasAutoSearched = useRef(false);
 
   // Load cookies on mount
   useEffect(() => {
@@ -33,19 +35,23 @@ export default function Home() {
     }
   }, []);
 
-  // Filter results based on checked checkboxes and availability
+  // Auto search when regions are loaded and keyword exists
+  useEffect(() => {
+    if (urlKeyword && selectedRegions.length > 0 && !hasAutoSearched.current) {
+      hasAutoSearched.current = true;
+      executeSearch(selectedRegions, urlKeyword);
+    }
+  }, [selectedRegions, urlKeyword]);
+
   const visibleItems = searchResults.filter((item) => {
-    // If originalRegion is missing for some reason, show it (fallback)
     if (!item.originalRegion) return true;
     const regionMatch = activeRegionIds.includes(item.originalRegion.id);
-    // 거래 가능만 보기 필터
     if (showOnlyAvailable && item.status && item.status !== '판매중') {
       return false;
     }
     return regionMatch;
   });
 
-  // 지역별 검색 결과 건수 계산
   const regionCounts = searchResults.reduce((acc, item) => {
     if (item.originalRegion?.id) {
       acc[item.originalRegion.id] = (acc[item.originalRegion.id] || 0) + 1;
@@ -57,9 +63,7 @@ export default function Home() {
     setShowOnlyAvailable(true);
   };
 
-  // 단일 지역 검색 함수
   const searchSingleRegion = async (region, searchKeyword) => {
-    // 로딩 상태로 변경
     setRegionStatus(prev => ({
       ...prev,
       [region.id]: { status: 'loading', completedAt: null }
@@ -71,13 +75,11 @@ export default function Home() {
         keyword: searchKeyword,
       });
 
-      // 해당 지역의 기존 결과 제거 후 새 결과 추가
       setSearchResults(prev => {
         const filtered = prev.filter(item => item.originalRegion?.id !== region.id);
         return [...filtered, ...(data.items || [])];
       });
 
-      // 완료 상태로 변경
       setRegionStatus(prev => ({
         ...prev,
         [region.id]: { status: 'completed', completedAt: new Date() }
@@ -86,7 +88,6 @@ export default function Home() {
       return data.items || [];
     } catch (err) {
       console.error(`Error searching region ${region.name3}:`, err);
-      // 에러 시에도 완료 처리 (빈 결과)
       setRegionStatus(prev => ({
         ...prev,
         [region.id]: { status: 'completed', completedAt: new Date(), error: true }
@@ -95,7 +96,6 @@ export default function Home() {
     }
   };
 
-  // 개별 지역 리프레쉬
   const handleRefreshRegion = async (regionId) => {
     if (!keyword.trim()) {
       alert('검색어를 먼저 입력해주세요.');
@@ -107,39 +107,34 @@ export default function Home() {
     }
   };
 
-  // 지연 함수
   const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
   const getRandomDelay = (min = 800, max = 3000) => {
     return Math.floor(Math.random() * (max - min + 1)) + min;
   };
 
-  const handleSearch = async (e) => {
-    e && e.preventDefault();
-    if (!keyword.trim()) return;
-    if (selectedRegions.length === 0) {
+  const executeSearch = async (regions, searchKeyword) => {
+    if (!searchKeyword.trim()) return;
+    if (regions.length === 0) {
       alert('지역을 먼저 선택해주세요.');
       setIsPopupOpen(true);
       return;
     }
 
-    // 검색 시작 시 모든 지역을 pending 상태로 초기화
     const initialStatus = {};
-    selectedRegions.forEach(region => {
+    regions.forEach(region => {
       initialStatus[region.id] = { status: 'pending', completedAt: null };
     });
     setRegionStatus(initialStatus);
 
     setLoading(true);
     setHasSearched(true);
-    setSearchResults([]); // 기존 결과 초기화
+    setSearchResults([]);
 
-    // 순차적으로 각 지역 검색
-    for (let i = 0; i < selectedRegions.length; i++) {
-      const region = selectedRegions[i];
-      await searchSingleRegion(region, keyword);
+    for (let i = 0; i < regions.length; i++) {
+      const region = regions[i];
+      await searchSingleRegion(region, searchKeyword);
       
-      // 마지막 요청이 아니면 딜레이
-      if (i < selectedRegions.length - 1) {
+      if (i < regions.length - 1) {
         await delay(getRandomDelay());
       }
     }
@@ -147,23 +142,19 @@ export default function Home() {
     setLoading(false);
   };
 
+  const handleSearch = async (e) => {
+    e && e.preventDefault();
+    await executeSearch(selectedRegions, keyword);
+  };
+
   const handleSaveRegions = (newRegions) => {
     setSelectedRegions(newRegions);
     saveCookie(newRegions);
 
-    // Auto-check new regions
     const newIds = newRegions.map((r) => r.id);
     setActiveRegionIds(newIds);
 
-    // Auto-search if keyword exists? 
-    // Maybe better to let user click search, but if results are empty and keyword exists, could be nice.
-    // For now, clear results to avoid confusion (results for old region set)
-    // Or we could re-trigger search if keyword is present.
     if (keyword.trim()) {
-      // We need to trigger search with NEW regions.  
-      // Since setState is async, we pass newRegions directly to a helper or just rely on next render?
-      // But handleSearch uses state `selectedRegions`.
-      // Let's just clear results to force re-search for clarity.
       setSearchResults([]);
       setHasSearched(false);
     }
@@ -183,11 +174,7 @@ export default function Home() {
     const newRegions = selectedRegions.filter((r) => r.id !== id);
     setSelectedRegions(newRegions);
     saveCookie(newRegions);
-
-    // Also remove from active
     setActiveRegionIds((prev) => prev.filter((rid) => rid !== id));
-
-    // Remove items from results that belonged to this region
     setSearchResults((prev) => prev.filter((item) => item.originalRegion?.id !== id));
   };
 
@@ -198,17 +185,14 @@ export default function Home() {
           <div className={styles.siteLogo}>
             <div className={styles.logoIcon}>
               <svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 100 100" fill="none">
-                {/* 양파 줄기 */}
                 <path d="M50 5 C48 5 46 8 46 12 L46 25 C46 27 48 28 50 28 C52 28 54 27 54 25 L54 12 C54 8 52 5 50 5Z" fill="#4CAF50" />
                 <path d="M42 8 C40 6 36 7 35 10 L32 22 C31 24 33 26 35 25 L44 20 C46 19 46 16 44 14 L42 8Z" fill="#66BB6A" />
                 <path d="M58 8 C60 6 64 7 65 10 L68 22 C69 24 67 26 65 25 L56 20 C54 19 54 16 56 14 L58 8Z" fill="#66BB6A" />
-                {/* 양파 몸통 - 여러 겹 */}
                 <ellipse cx="50" cy="62" rx="38" ry="32" fill="#E1BEE7" />
                 <ellipse cx="50" cy="62" rx="30" ry="26" fill="#CE93D8" />
                 <ellipse cx="50" cy="62" rx="22" ry="20" fill="#BA68C8" />
                 <ellipse cx="50" cy="62" rx="14" ry="14" fill="#AB47BC" />
                 <ellipse cx="50" cy="62" rx="6" ry="8" fill="#9C27B0" />
-                {/* 하이라이트 */}
                 <ellipse cx="38" cy="52" rx="6" ry="4" fill="rgba(255,255,255,0.3)" transform="rotate(-20 38 52)" />
               </svg>
             </div>

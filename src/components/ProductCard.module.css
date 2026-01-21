@@ -70,3 +70,46 @@
 .origin {
     opacity: 0.6;
 }
+
+/* 작게 보기: 50% */
+.cardSmall .content {
+    padding: 8px;
+}
+
+.cardSmall .title {
+    font-size: 0.7rem;
+    margin-bottom: 4px;
+}
+
+.cardSmall .price {
+    font-size: 0.75rem;
+    margin-bottom: 4px;
+}
+
+.cardSmall .footer {
+    font-size: 0.6rem;
+}
+
+/* 중간 보기: 기본 (변경 없음) */
+.cardMedium {
+    /* 기본 스타일 유지 */
+}
+
+/* 크게 보기: 150% */
+.cardLarge .content {
+    padding: 24px;
+}
+
+.cardLarge .title {
+    font-size: 1.5rem;
+    margin-bottom: 12px;
+}
+
+.cardLarge .price {
+    font-size: 1.65rem;
+    margin-bottom: 12px;
+}
+
+.cardLarge .footer {
+    font-size: 1.2rem;
+}
