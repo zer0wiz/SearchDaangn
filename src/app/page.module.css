@@ -27,7 +27,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 8px;
   flex-shrink: 0;
   width: var(--sidebar-width);
 }
@@ -37,11 +37,34 @@
   width: auto;
 }
 
-.siteLogo span {
-  font-size: 1.4rem;
-  font-weight: 700;
+.logoText {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  width: 110px;
+  justify-content: center;
+}
+
+.logoSubtitle {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  text-align: right;
+  padding-left: 0px;
+  padding-right: 0px;
+}
+
+.logoTitle {
+  font-size: 48px;
+  font-weight: 800;
   color: var(--primary);
   white-space: nowrap;
+  line-height: 1;
+  text-align: center;
+  width: 100%;
+  letter-spacing: 0.1em;
 }
 
 .searchBar {
@@ -102,6 +125,39 @@
   flex: 1;
 }
 
+.viewOptions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+.viewSizeLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.viewSizeSelect {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background-color: var(--secondary);
+  color: var(--foreground);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.viewSizeSelect:hover {
+  border-color: var(--text-secondary);
+}
+
+.viewSizeSelect:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
 .loading,
 .noResults,
 .placeholder {
@@ -115,6 +171,24 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 24px;
+}
+
+/* 작게 보기: 50% */
+.gridSmall {
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 12px;
+}
+
+/* 중간 보기: 기본 */
+.gridMedium {
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 24px;
+}
+
+/* 크게 보기: 150% */
+.gridLarge {
+  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+  gap: 32px;
 }
 
 /* Response Design */

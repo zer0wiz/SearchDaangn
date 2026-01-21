@@ -12,8 +12,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "당근 통합 검색",
-  description: "당근 통합 검색기",
+  title: "양파 통합 검색",
+  description: "양파 통합 검색기",
 }
 
 export default function RootLayout({ children }) {
