@@ -415,3 +415,161 @@
     text-align: center;
     padding: 20px 0;
 }
+
+/* 그룹 컨테이너 */
+.groupContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+/* 폴더 행 (그룹 헤더) */
+.folderRow {
+    display: flex;
+    align-items: center;
+    padding: 3px 12px 3px 6px;
+    padding-right: 6px;
+    background-color: rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+    transition: background-color 0.2s;
+}
+
+.folderRow:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* 펼치기/접기 버튼 */
+.expandBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: color 0.2s;
+    flex-shrink: 0;
+}
+
+.expandBtn:hover {
+    color: var(--primary);
+}
+
+/* 화살표 아이콘 */
+.arrowIcon {
+    transition: transform 0.2s ease;
+}
+
+.arrowExpanded {
+    transform: rotate(90deg);
+}
+
+/* 폴더 컨텐츠 */
+.folderContent {
+    flex: 1;
+    padding-top: 3px;
+    padding-left: 4px;
+    padding-right: 8px;
+}
+
+/* 폴더 텍스트 */
+.folderText {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+/* 하위 리스트 */
+.childList {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 8px;
+    padding-left: 0;
+    list-style: none;
+}
+
+/* 하위 아이템 (들여쓰기) */
+.childItem {
+    margin-left: 24px;
+    padding: 3px 12px 3px 12px;
+    padding-right: 6px;
+    background-color: rgba(255, 255, 255, 0.02);
+    border-radius: 8px;
+    transition: background-color 0.2s;
+}
+
+.childItem:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+}
+
+/* 하위 아이템 텍스트 스타일 */
+.childItem .text {
+    font-size: 0.8rem;
+}
+
+/* 상태 필터 체크박스 */
+.statusFilterList {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+}
+
+.statusFilterLabel {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    transition: opacity 0.2s;
+}
+
+.statusFilterLabel:hover {
+    color: var(--foreground);
+}
+
+.statusFilterLabel.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.statusFilterLabel.disabled:hover {
+    color: var(--text-secondary);
+}
+
+.statusFilterCheckbox {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: var(--primary);
+}
+
+.statusFilterCheckbox:disabled {
+    cursor: not-allowed;
+}
+
+/* 거래가능만 보기 래퍼 */
+.filterLabelWrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+/* 전체검색 필요 경고 메시지 */
+.researchWarning {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.75rem;
+    color: #a855f7;
+    margin-left: 22px;
+}
+
+.warningIcon {
+    flex-shrink: 0;
+}

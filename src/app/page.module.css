@@ -215,6 +215,40 @@
   }
 }
 
+.validationBanner {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+  padding: 12px 20px;
+  border-radius: var(--radius);
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.95rem;
+  animation: slideDown 0.3s ease-out;
+}
+
+.validationIcon {
+  font-size: 1.2rem;
+}
+
+.validationClose {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: #721c24;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.validationClose:hover {
+  background-color: rgba(114, 28, 36, 0.1);
+}
+
 .rateLimitBanner {
   background-color: #fff3cd;
   color: #856404;

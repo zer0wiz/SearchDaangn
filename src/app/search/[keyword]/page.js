@@ -21,9 +21,12 @@ export default function SearchPage() {
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [showOnlyAvailable, setShowOnlyAvailable] = useState(true);
+  const [lastSearchedOnlyAvailable, setLastSearchedOnlyAvailable] = useState(true);
+  const [needsResearch, setNeedsResearch] = useState(false);
   const [regionStatus, setRegionStatus] = useState({});
   const [includeTags, setIncludeTags] = useState([]); // 포함할 단어
   const [excludeTags, setExcludeTags] = useState([]); // 제외할 단어
+  const [statusFilters, setStatusFilters] = useState(['ongoing']); // 상태 필터 (초기: 거래가능만)
   const searchAbortRef = useRef(null);
   const hasAutoSearched = useRef(false);
 
@@ -44,7 +47,68 @@ export default function SearchPage() {
     }
   }, [selectedRegions, urlKeyword]);
 
-  const regionCounts = searchResults.reduce((acc, item) => {
+  // API 상태값을 내부 상태 키로 매핑
+  const STATUS_MAP = {
+    'Ongoing': 'ongoing',
+    'ongoing': 'ongoing',
+    'ONGOING': 'ongoing',
+    '판매중': 'ongoing',
+    'ON_SALE': 'ongoing',
+    'Reserved': 'reserved',
+    'reserved': 'reserved',
+    'RESERVED': 'reserved',
+    '예약중': 'reserved',
+    'Completed': 'sold',
+    'completed': 'sold',
+    'COMPLETED': 'sold',
+    'Soldout': 'sold',
+    'soldout': 'sold',
+    'SOLDOUT': 'sold',
+    '거래완료': 'sold',
+    '판매완료': 'sold',
+  };
+
+  // 지역별 API 검색 결과 건수 계산 (필터링 전)
+  const regionApiCounts = searchResults.reduce((acc, item) => {
+    if (item.originalRegion?.id) {
+      acc[item.originalRegion.id] = (acc[item.originalRegion.id] || 0) + 1;
+    }
+    return acc;
+  }, {});
+
+  // 필터링된 결과 계산
+  const filteredResults = searchResults.filter((item) => {
+    if (!item.originalRegion) return true;
+    
+    // 상태 필터
+    const itemStatusKey = STATUS_MAP[item.status] || 'ongoing';
+    if (!statusFilters.includes(itemStatusKey)) {
+      return false;
+    }
+    
+    // 포함할 단어 필터
+    if (includeTags.length > 0) {
+      const title = item.title?.toLowerCase() || '';
+      const content = item.content?.toLowerCase() || '';
+      const searchText = title + ' ' + content;
+      const hasAllInclude = includeTags.every(tag => searchText.includes(tag.toLowerCase()));
+      if (!hasAllInclude) return false;
+    }
+    
+    // 제외할 단어 필터
+    if (excludeTags.length > 0) {
+      const title = item.title?.toLowerCase() || '';
+      const content = item.content?.toLowerCase() || '';
+      const searchText = title + ' ' + content;
+      const hasAnyExclude = excludeTags.some(tag => searchText.includes(tag.toLowerCase()));
+      if (hasAnyExclude) return false;
+    }
+    
+    return true;
+  });
+
+  // 지역별 필터링 건수 계산
+  const regionFilteredCounts = filteredResults.reduce((acc, item) => {
     if (item.originalRegion?.id) {
       acc[item.originalRegion.id] = (acc[item.originalRegion.id] || 0) + 1;
     }
@@ -52,10 +116,40 @@ export default function SearchPage() {
   }, {});
 
   const handleResetFilter = () => {
-    setShowOnlyAvailable(true);
+    // 검색결과 필터링만 초기화 (거래가능만 보기 제외)
+    setIncludeTags([]);
+    setExcludeTags([]);
+    if (showOnlyAvailable) {
+      setStatusFilters(['ongoing']);
+    } else {
+      setStatusFilters(['ongoing', 'reserved', 'sold']);
+    }
   };
 
-  const searchSingleRegion = async (region, searchKeyword) => {
+  // 거래가능만 보기 토글 핸들러
+  const handleToggleAvailable = () => {
+    const newValue = !showOnlyAvailable;
+    setShowOnlyAvailable(newValue);
+    
+    if (newValue) {
+      // 체크됨: 상태 필터를 거래가능만 체크로 변경 (활성화 상태)
+      setStatusFilters(['ongoing']);
+      setNeedsResearch(false);
+    } else {
+      // 체크 해제됨
+      if (lastSearchedOnlyAvailable) {
+        // 이전에 거래가능만 보기로 검색했으면 전체검색 필요
+        setNeedsResearch(true);
+        setStatusFilters(['ongoing']);
+      } else {
+        // 이전에 전체검색했으면 바로 활성화
+        setNeedsResearch(false);
+        setStatusFilters(['ongoing', 'reserved', 'sold']);
+      }
+    }
+  };
+
+  const searchSingleRegion = async (region, searchKeyword, onlyOnSale = showOnlyAvailable) => {
     setRegionStatus(prev => ({
       ...prev,
       [region.id]: { status: 'loading', completedAt: null }
@@ -65,6 +159,7 @@ export default function SearchPage() {
       const { data } = await axios.post('/api/search-single', {
         region,
         keyword: searchKeyword,
+        onlyOnSale,
       });
 
       setSearchResults(prev => {
@@ -122,6 +217,15 @@ export default function SearchPage() {
     setHasSearched(true);
     setSearchResults([]);
 
+    // 검색 시 현재 거래가능만 보기 상태 저장
+    setLastSearchedOnlyAvailable(showOnlyAvailable);
+    setNeedsResearch(false);
+    
+    // 거래가능만 보기 해제 상태로 검색하면 상태 필터 전체 활성화
+    if (!showOnlyAvailable) {
+      setStatusFilters(['ongoing', 'reserved', 'sold']);
+    }
+
     for (let i = 0; i < regions.length; i++) {
       const region = regions[i];
       await searchSingleRegion(region, searchKeyword);
@@ -172,9 +276,12 @@ export default function SearchPage() {
   };
 
   const handleToggleRegion = (id) => {
+    // 타입 일관성을 위해 문자열로 변환하여 비교
+    const idStr = String(id);
     setActiveRegionIds((prev) => {
-      if (prev.includes(id)) {
-        return prev.filter((rid) => rid !== id);
+      const prevStr = prev.map(String);
+      if (prevStr.includes(idStr)) {
+        return prev.filter((rid) => String(rid) !== idStr);
       } else {
         return [...prev, id];
       }
@@ -182,11 +289,12 @@ export default function SearchPage() {
   };
 
   const handleRemoveRegion = (id) => {
-    const newRegions = selectedRegions.filter((r) => r.id !== id);
+    const idStr = String(id);
+    const newRegions = selectedRegions.filter((r) => String(r.id) !== idStr);
     setSelectedRegions(newRegions);
     saveCookie(newRegions);
-    setActiveRegionIds((prev) => prev.filter((rid) => rid !== id));
-    setSearchResults((prev) => prev.filter((item) => item.originalRegion?.id !== id));
+    setActiveRegionIds((prev) => prev.filter((rid) => String(rid) !== idStr));
+    setSearchResults((prev) => prev.filter((item) => String(item.originalRegion?.id) !== idStr));
   };
 
   return (
@@ -239,13 +347,17 @@ export default function SearchPage() {
             onToggle={handleToggleRegion}
             onRemove={handleRemoveRegion}
             showOnlyAvailable={showOnlyAvailable}
-            onToggleAvailable={() => setShowOnlyAvailable(!showOnlyAvailable)}
+            onToggleAvailable={handleToggleAvailable}
+            needsResearch={needsResearch}
             onResetFilter={handleResetFilter}
-            regionCounts={regionCounts}
+            regionApiCounts={regionApiCounts}
+            regionFilteredCounts={regionFilteredCounts}
             includeTags={includeTags}
             excludeTags={excludeTags}
             onIncludeTagsChange={setIncludeTags}
             onExcludeTagsChange={setExcludeTags}
+            statusFilters={statusFilters}
+            onStatusFiltersChange={setStatusFilters}
             regionStatus={regionStatus}
             onRefreshRegion={handleRefreshRegion}
           />
@@ -253,9 +365,9 @@ export default function SearchPage() {
             searchResults={searchResults}
             activeRegionIds={activeRegionIds}
             selectedRegions={selectedRegions}
-            showOnlyAvailable={showOnlyAvailable}
             includeTags={includeTags}
             excludeTags={excludeTags}
+            statusFilters={statusFilters}
             loading={loading}
             hasSearched={hasSearched}
           />

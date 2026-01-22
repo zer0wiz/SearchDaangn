@@ -19,6 +19,29 @@
     aspect-ratio: 1;
     background-color: #000;
     overflow: hidden;
+    position: relative;
+}
+
+/* 상태 배지 (예약중, 판매완료) */
+.statusBadge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    z-index: 1;
+}
+
+.statusReserved {
+    background-color: #22c55e;
+    color: white;
+}
+
+.statusSold {
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
 }
 
 .image {
@@ -90,6 +113,13 @@
     font-size: 0.6rem;
 }
 
+.cardSmall .statusBadge {
+    padding: 3px 6px;
+    font-size: 0.55rem;
+    top: 4px;
+    left: 4px;
+}
+
 /* 중간 보기: 기본 (변경 없음) */
 .cardMedium {
     /* 기본 스타일 유지 */
@@ -112,4 +142,11 @@
 
 .cardLarge .footer {
     font-size: 1.2rem;
+}
+
+.cardLarge .statusBadge {
+    padding: 8px 16px;
+    font-size: 1rem;
+    top: 12px;
+    left: 12px;
 }

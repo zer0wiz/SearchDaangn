@@ -21,7 +21,7 @@ function getTimeAgo(dateString) {
 
 export async function POST(request) {
     try {
-        const { region, keyword } = await request.json();
+        const { region, keyword, onlyOnSale = true } = await request.json();
 
         if (!region || !keyword) {
             return NextResponse.json({ items: [], regionId: region?.id });
@@ -30,8 +30,10 @@ export async function POST(request) {
         try {
             const locationQuery = `${region.name3}-${region.id}`;
             const encodedKeyword = encodeURIComponent(keyword);
-            // JSON API 엔드포인트 사용 (모든 상품 가져옴, 프론트엔드에서 필터링)
-            const url = `https://www.daangn.com/kr/buy-sell/?in=${locationQuery}&search=${encodedKeyword}&_data=routes%2Fkr.buy-sell._index`;
+            // JSON API 엔드포인트 사용
+            // onlyOnSale이 true면 거래 가능만 조회
+            const onSaleParam = onlyOnSale ? '&only_on_sale=true' : '';
+            const url = `https://www.daangn.com/kr/buy-sell/?in=${locationQuery}&search=${encodedKeyword}${onSaleParam}&_data=routes%2Fkr.buy-sell._index`;
 
             const response = await axios.get(url, {
                 headers: {

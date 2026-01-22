@@ -4,13 +4,34 @@ import { useState, useMemo } from 'react';
 import styles from '../app/page.module.css';
 import ProductCard from './ProductCard';
 
+// API 상태값을 내부 상태 키로 매핑
+const STATUS_MAP = {
+  'Ongoing': 'ongoing',
+  'ongoing': 'ongoing',
+  'ONGOING': 'ongoing',
+  '판매중': 'ongoing',
+  'ON_SALE': 'ongoing',
+  'Reserved': 'reserved',
+  'reserved': 'reserved',
+  'RESERVED': 'reserved',
+  '예약중': 'reserved',
+  'Completed': 'sold',
+  'completed': 'sold',
+  'COMPLETED': 'sold',
+  'Soldout': 'sold',
+  'soldout': 'sold',
+  'SOLDOUT': 'sold',
+  '거래완료': 'sold',
+  '판매완료': 'sold',
+};
+
 export default function SearchResultsView({
   searchResults,
   activeRegionIds,
   selectedRegions,
-  showOnlyAvailable,
   includeTags,
   excludeTags,
+  statusFilters = ['ongoing', 'reserved', 'sold'],
   loading,
   hasSearched,
 }) {
@@ -18,16 +39,20 @@ export default function SearchResultsView({
   const [sortBy, setSortBy] = useState('none'); // 정렬: none, priceAsc, priceDesc, updatedAt
   const [groupBy, setGroupBy] = useState('none'); // 구분: none, location
 
-  // Filter results based on checked checkboxes and availability
+  // Filter results based on checked checkboxes and word filters
   const visibleItems = useMemo(() => {
     return searchResults.filter((item) => {
       // If originalRegion is missing for some reason, show it (fallback)
       if (!item.originalRegion) return true;
-      const regionMatch = activeRegionIds.includes(item.originalRegion.id);
-      // 거래 가능만 보기 필터 (판매중이 아닌 상품 제외)
-      if (showOnlyAvailable && item.status && item.status !== '판매중' && item.status !== 'ON_SALE') {
+      // 타입 불일치 방지를 위해 문자열로 변환하여 비교
+      const regionMatch = activeRegionIds.map(String).includes(String(item.originalRegion.id));
+      
+      // 상태 필터 (항상 적용)
+      const itemStatusKey = STATUS_MAP[item.status] || 'ongoing';
+      if (!statusFilters.includes(itemStatusKey)) {
         return false;
       }
+      
       // 포함할 단어 필터 (모든 단어가 제목 또는 내용에 포함되어야 함)
       if (includeTags.length > 0) {
         const title = item.title?.toLowerCase() || '';
@@ -46,7 +71,7 @@ export default function SearchResultsView({
       }
       return regionMatch;
     });
-  }, [searchResults, activeRegionIds, showOnlyAvailable, includeTags, excludeTags]);
+  }, [searchResults, activeRegionIds, includeTags, excludeTags, statusFilters, showOnlyAvailable]);
 
   // 정렬 적용
   const sortedItems = useMemo(() => {
@@ -64,17 +89,17 @@ export default function SearchResultsView({
     });
   }, [visibleItems, sortBy]);
 
-  // 그룹화 적용
+  // 그룹화 적용 (activeRegionIds에 포함된 지역만, 0건이어도 그룹 표시)
   const groupedItems = useMemo(() => {
     if (groupBy !== 'location') return null;
-    return selectedRegions.reduce((acc, region) => {
-      const items = sortedItems.filter(item => item.originalRegion?.id === region.id);
-      if (items.length > 0) {
-        acc.push({ region, items });
-      }
-      return acc;
-    }, []);
-  }, [groupBy, selectedRegions, sortedItems]);
+    // activeRegionIds에 포함된 지역만 그룹화 (체크된 지역) - 타입 불일치 방지
+    const activeIdsStr = activeRegionIds.map(String);
+    const activeRegions = selectedRegions.filter(region => activeIdsStr.includes(String(region.id)));
+    return activeRegions.map(region => {
+      const items = sortedItems.filter(item => String(item.originalRegion?.id) === String(region.id));
+      return { region, items };
+    });
+  }, [groupBy, selectedRegions, activeRegionIds, sortedItems]);
 
   const gridClassName = `${styles.grid} ${styles[`grid${viewSize.charAt(0).toUpperCase() + viewSize.slice(1)}`]}`;
 
