@@ -23,6 +23,8 @@ export default function SearchPage() {
   const [showOnlyAvailable, setShowOnlyAvailable] = useState(true);
   const [regionStatus, setRegionStatus] = useState({});
   const [viewSize, setViewSize] = useState('medium'); // 보기 크기: small, medium, large
+  const [includeTags, setIncludeTags] = useState([]); // 포함할 단어
+  const [excludeTags, setExcludeTags] = useState([]); // 제외할 단어
   const searchAbortRef = useRef(null);
   const hasAutoSearched = useRef(false);
 
@@ -48,6 +50,22 @@ export default function SearchPage() {
     const regionMatch = activeRegionIds.includes(item.originalRegion.id);
     if (showOnlyAvailable && item.status && item.status !== '판매중') {
       return false;
+    }
+    // 포함할 단어 필터 (모든 단어가 제목 또는 내용에 포함되어야 함)
+    if (includeTags.length > 0) {
+      const title = item.title?.toLowerCase() || '';
+      const content = item.content?.toLowerCase() || '';
+      const searchText = title + ' ' + content;
+      const hasAllInclude = includeTags.every(tag => searchText.includes(tag.toLowerCase()));
+      if (!hasAllInclude) return false;
+    }
+    // 제외할 단어 필터 (하나라도 제목 또는 내용에 포함되면 제외)
+    if (excludeTags.length > 0) {
+      const title = item.title?.toLowerCase() || '';
+      const content = item.content?.toLowerCase() || '';
+      const searchText = title + ' ' + content;
+      const hasAnyExclude = excludeTags.some(tag => searchText.includes(tag.toLowerCase()));
+      if (hasAnyExclude) return false;
     }
     return regionMatch;
   });
@@ -147,16 +165,35 @@ export default function SearchPage() {
     await executeSearch(selectedRegions, keyword);
   };
 
-  const handleSaveRegions = (newRegions) => {
+  const handleSaveRegions = async (newRegions) => {
+    // 새로 추가된 지역 찾기
+    const existingIds = selectedRegions.map(r => r.id);
+    const addedRegions = newRegions.filter(r => !existingIds.includes(r.id));
+
     setSelectedRegions(newRegions);
     saveCookie(newRegions);
 
     const newIds = newRegions.map((r) => r.id);
     setActiveRegionIds(newIds);
 
-    if (keyword.trim()) {
-      setSearchResults([]);
-      setHasSearched(false);
+    // 검색어가 있고 새로 추가된 지역이 있으면 해당 지역만 검색
+    if (keyword.trim() && addedRegions.length > 0 && hasSearched) {
+      // 새 지역들을 pending 상태로 설정
+      const addedStatus = {};
+      addedRegions.forEach(region => {
+        addedStatus[region.id] = { status: 'pending', completedAt: null };
+      });
+      setRegionStatus(prev => ({ ...prev, ...addedStatus }));
+
+      // 새로 추가된 지역만 순차 검색
+      for (let i = 0; i < addedRegions.length; i++) {
+        const region = addedRegions[i];
+        await searchSingleRegion(region, keyword);
+        
+        if (i < addedRegions.length - 1) {
+          await delay(getRandomDelay());
+        }
+      }
     }
   };
 
@@ -231,6 +268,10 @@ export default function SearchPage() {
             onToggleAvailable={() => setShowOnlyAvailable(!showOnlyAvailable)}
             onResetFilter={handleResetFilter}
             regionCounts={regionCounts}
+            includeTags={includeTags}
+            excludeTags={excludeTags}
+            onIncludeTagsChange={setIncludeTags}
+            onExcludeTagsChange={setExcludeTags}
             regionStatus={regionStatus}
             onRefreshRegion={handleRefreshRegion}
           />

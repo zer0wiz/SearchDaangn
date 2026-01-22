@@ -276,6 +276,10 @@
     align-self: center;
 }
 
+.buttonWrapper {
+    position: relative;
+}
+
 .optionBtn {
     display: flex;
     align-items: center;
@@ -291,6 +295,38 @@
     opacity: 1;
     background-color: rgba(255, 255, 255, 0.1);
     color: var(--foreground);
+}
+
+.optionMenu {
+    position: fixed;
+    background-color: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    min-width: 100px;
+    z-index: 1000;
+    overflow: hidden;
+}
+
+.optionMenuItem {
+    display: block;
+    width: 100%;
+    padding: 10px 14px;
+    text-align: left;
+    font-size: 0.85rem;
+    color: var(--foreground);
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.optionMenuItem:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.optionMenuItem:active {
+    background-color: rgba(255, 255, 255, 0.15);
 }
 
 /* 상태 영역 */

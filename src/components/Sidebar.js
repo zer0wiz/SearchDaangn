@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import styles from './Sidebar.module.css';
 
 // 상대 시간 포맷 함수
@@ -58,6 +58,10 @@ export default function Sidebar({
     const [showExcludeInput, setShowExcludeInput] = useState(false);
     const [includeInputValue, setIncludeInputValue] = useState('');
     const [excludeInputValue, setExcludeInputValue] = useState('');
+    const [isComposing, setIsComposing] = useState(false); // 한글 조합 중 여부
+    const [openMenuId, setOpenMenuId] = useState(null); // 열린 옵션 메뉴의 region id
+    const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 }); // 메뉴 위치
+    const menuRef = useRef(null);
     const [, setTimeUpdate] = useState(0);
 
     // 30초마다 상대 시간 업데이트
@@ -67,6 +71,39 @@ export default function Sidebar({
         }, 30000);
         return () => clearInterval(interval);
     }, []);
+
+    // 메뉴 외부 클릭 시 닫기
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (menuRef.current && !menuRef.current.contains(e.target)) {
+                setOpenMenuId(null);
+            }
+        };
+        if (openMenuId !== null) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [openMenuId]);
+
+    const handleOptionClick = (e, regionId) => {
+        if (openMenuId === regionId) {
+            setOpenMenuId(null);
+        } else {
+            const rect = e.currentTarget.getBoundingClientRect();
+            setMenuPosition({
+                top: rect.bottom + 4,
+                left: rect.right - 100 // 메뉴 너비(100px)만큼 왼쪽으로
+            });
+            setOpenMenuId(regionId);
+        }
+    };
+
+    const handleDeleteRegion = (regionId) => {
+        onRemove(regionId);
+        setOpenMenuId(null);
+    };
     // 선택된 지역들의 전체 건수 계산
     const totalCount = selectedRegions?.reduce((sum, region) => {
         return sum + (regionCounts[region.id] || 0);
@@ -97,20 +134,20 @@ export default function Sidebar({
     };
 
     const handleIncludeKeyDown = (e) => {
-        if (e.key === 'Enter') {
+        if (e.key === 'Enter' && !isComposing) {
             e.preventDefault();
             handleAddIncludeTag();
         }
     };
 
     const handleExcludeKeyDown = (e) => {
-        if (e.key === 'Enter') {
+        if (e.key === 'Enter' && !isComposing) {
             e.preventDefault();
             handleAddExcludeTag();
         }
     };
 
-    const FilterSection = () => (
+    const filterSection = (
         <div className={styles.filterSection}>
             <div className={styles.filterHeader}>
                 <h2>필터</h2>
@@ -130,7 +167,7 @@ export default function Sidebar({
         </div>
     );
 
-    const SearchConditionSection = () => (
+    const searchConditionSection = (
         <div className={styles.searchConditionSection}>
             <div className={styles.filterHeader}>
                 <h2>검색조건</h2>
@@ -156,6 +193,8 @@ export default function Sidebar({
                             value={includeInputValue}
                             onChange={(e) => setIncludeInputValue(e.target.value)}
                             onKeyDown={handleIncludeKeyDown}
+                            onCompositionStart={() => setIsComposing(true)}
+                            onCompositionEnd={() => setIsComposing(false)}
                             autoFocus
                         />
                     </div>
@@ -197,6 +236,8 @@ export default function Sidebar({
                             value={excludeInputValue}
                             onChange={(e) => setExcludeInputValue(e.target.value)}
                             onKeyDown={handleExcludeKeyDown}
+                            onCompositionStart={() => setIsComposing(true)}
+                            onCompositionEnd={() => setIsComposing(false)}
                             autoFocus
                         />
                     </div>
@@ -223,8 +264,8 @@ export default function Sidebar({
     if (!selectedRegions || selectedRegions.length === 0) {
         return (
             <aside className={styles.sidebar}>
-                <FilterSection />
-                <SearchConditionSection />
+                {filterSection}
+                {searchConditionSection}
                 <div className={styles.header}>
                     <h2>선택된 지역</h2>
                 </div>
@@ -237,8 +278,8 @@ export default function Sidebar({
 
     return (
         <aside className={styles.sidebar}>
-            <FilterSection />
-            <SearchConditionSection />
+            {filterSection}
+            {searchConditionSection}
             <div className={styles.header}>
                 <h2>선택된 지역</h2>
                 {totalCount > 0 && (
@@ -302,7 +343,7 @@ export default function Sidebar({
                             <div className={styles.buttonWrapper}>
                                 <button
                                     className={styles.optionBtn}
-                                    onClick={() => onRemove(region.id)}
+                                    onClick={(e) => handleOptionClick(e, region.id)}
                                     aria-label="Options"
                                 >
                                     <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
@@ -316,6 +357,20 @@ export default function Sidebar({
                     );
                 })}
             </ul>
+            {openMenuId !== null && (
+                <div 
+                    ref={menuRef}
+                    className={styles.optionMenu}
+                    style={{ top: menuPosition.top, left: menuPosition.left }}
+                >
+                    <button
+                        className={styles.optionMenuItem}
+                        onClick={() => handleDeleteRegion(openMenuId)}
+                    >
+                        삭제
+                    </button>
+                </div>
+            )}
         </aside>
     );
 }

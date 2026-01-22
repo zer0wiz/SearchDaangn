@@ -12,7 +12,7 @@ export default function ProductCard({ item, size = 'medium' }) {
                 <p className={styles.price}>{item.price}</p>
                 <div className={styles.footer}>
                     <span className={styles.region}>{item.regionName}</span>
-                    <span className={styles.origin}>(검색: {item.originalRegion?.name3})</span>
+                    {item.timeAgo && <span className={styles.timeAgo}>{item.timeAgo}</span>}
                 </div>
             </div>
         </a>

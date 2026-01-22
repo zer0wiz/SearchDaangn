@@ -67,8 +67,8 @@
     color: var(--text-secondary);
 }
 
-.origin {
-    opacity: 0.6;
+.timeAgo {
+    opacity: 0.7;
 }
 
 /* 작게 보기: 50% */

@@ -24,6 +24,8 @@ export default function Home() {
   const [viewSize, setViewSize] = useState('medium'); // 보기 크기: small, medium, large
   const [includeTags, setIncludeTags] = useState([]); // 포함할 단어
   const [excludeTags, setExcludeTags] = useState([]); // 제외할 단어
+  const [searchCache, setSearchCache] = useState({}); // 검색 캐시: { [cacheKey]: { items: [], timestamp: number } }
+  const [rateLimitMessage, setRateLimitMessage] = useState(null); // 제한 메시지
   const searchAbortRef = useRef(null); // 검색 중단용
 
   // Load cookies on mount
@@ -44,16 +46,20 @@ export default function Home() {
     if (showOnlyAvailable && item.status && item.status !== '판매중') {
       return false;
     }
-    // 포함할 단어 필터 (모든 단어가 포함되어야 함)
+    // 포함할 단어 필터 (모든 단어가 제목 또는 내용에 포함되어야 함)
     if (includeTags.length > 0) {
       const title = item.title?.toLowerCase() || '';
-      const hasAllInclude = includeTags.every(tag => title.includes(tag.toLowerCase()));
+      const content = item.content?.toLowerCase() || '';
+      const searchText = title + ' ' + content;
+      const hasAllInclude = includeTags.every(tag => searchText.includes(tag.toLowerCase()));
       if (!hasAllInclude) return false;
     }
-    // 제외할 단어 필터 (하나라도 포함되면 제외)
+    // 제외할 단어 필터 (하나라도 제목 또는 내용에 포함되면 제외)
     if (excludeTags.length > 0) {
       const title = item.title?.toLowerCase() || '';
-      const hasAnyExclude = excludeTags.some(tag => title.includes(tag.toLowerCase()));
+      const content = item.content?.toLowerCase() || '';
+      const searchText = title + ' ' + content;
+      const hasAnyExclude = excludeTags.some(tag => searchText.includes(tag.toLowerCase()));
       if (hasAnyExclude) return false;
     }
     return regionMatch;
@@ -73,6 +79,33 @@ export default function Home() {
 
   // 단일 지역 검색 함수
   const searchSingleRegion = async (region, searchKeyword) => {
+    const cacheKey = `${region.id}-${searchKeyword}`;
+    const now = Date.now();
+    const cached = searchCache[cacheKey];
+
+    // 1분(60000ms) 이내 동일 검색어/지역 체크
+    if (cached && (now - cached.timestamp) < 60000) {
+      const remainingSec = Math.ceil((60000 - (now - cached.timestamp)) / 1000);
+      setRateLimitMessage({
+        message: `1분 이내 동일한 검색은 불가능합니다.`,
+        remaining: remainingSec
+      });
+
+      // 캐시된 결과 사용
+      setSearchResults(prev => {
+        const filtered = prev.filter(item => item.originalRegion?.id !== region.id);
+        return [...filtered, ...(cached.items || [])];
+      });
+
+      // 완료 상태로 변경
+      setRegionStatus(prev => ({
+        ...prev,
+        [region.id]: { status: 'completed', completedAt: new Date(cached.timestamp) }
+      }));
+
+      return cached.items || [];
+    }
+
     // 로딩 상태로 변경
     setRegionStatus(prev => ({
       ...prev,
@@ -85,10 +118,18 @@ export default function Home() {
         keyword: searchKeyword,
       });
 
+      const items = data.items || [];
+
+      // 캐시 저장
+      setSearchCache(prev => ({
+        ...prev,
+        [cacheKey]: { items, timestamp: Date.now() }
+      }));
+
       // 해당 지역의 기존 결과 제거 후 새 결과 추가
       setSearchResults(prev => {
         const filtered = prev.filter(item => item.originalRegion?.id !== region.id);
-        return [...filtered, ...(data.items || [])];
+        return [...filtered, ...items];
       });
 
       // 완료 상태로 변경
@@ -97,7 +138,7 @@ export default function Home() {
         [region.id]: { status: 'completed', completedAt: new Date() }
       }));
 
-      return data.items || [];
+      return items;
     } catch (err) {
       console.error(`Error searching region ${region.name3}:`, err);
       // 에러 시에도 완료 처리 (빈 결과)
@@ -109,6 +150,20 @@ export default function Home() {
     }
   };
 
+  // 메시지 자동 삭제 타이머 및 잔여 시간 카운트다운
+  useEffect(() => {
+    if (rateLimitMessage) {
+      const timer = setInterval(() => {
+        setRateLimitMessage(prev => {
+          if (!prev) return null;
+          if (prev.remaining <= 1) return null;
+          return { ...prev, remaining: prev.remaining - 1 };
+        });
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [rateLimitMessage]);
+
   // 개별 지역 리프레쉬
   const handleRefreshRegion = async (regionId) => {
     if (!keyword.trim()) {
@@ -117,6 +172,7 @@ export default function Home() {
     }
     const region = selectedRegions.find(r => r.id === regionId);
     if (region) {
+      setRateLimitMessage(null); // 메시지 초기화
       await searchSingleRegion(region, keyword);
     }
   };
@@ -136,6 +192,8 @@ export default function Home() {
       return;
     }
 
+    setRateLimitMessage(null); // 메시지 초기화
+
     // 검색 시작 시 모든 지역을 pending 상태로 초기화
     const initialStatus = {};
     selectedRegions.forEach(region => {
@@ -154,14 +212,20 @@ export default function Home() {
       
       // 마지막 요청이 아니면 딜레이
       if (i < selectedRegions.length - 1) {
-        await delay(getRandomDelay());
+        // 캐시된 결과가 아니면 딜레이 적용 (캐시 체크 로직이 searchSingleRegion 내부에 있음)
+        // 여기서는 단순하게 유지하거나, searchSingleRegion의 반환값으로 캐시 여부를 판단할 수 있음
+        await delay(getRandomDelay(500, 1500));
       }
     }
 
     setLoading(false);
   };
 
-  const handleSaveRegions = (newRegions) => {
+  const handleSaveRegions = async (newRegions) => {
+    // 새로 추가된 지역 찾기
+    const existingIds = selectedRegions.map(r => r.id);
+    const addedRegions = newRegions.filter(r => !existingIds.includes(r.id));
+
     setSelectedRegions(newRegions);
     saveCookie(newRegions);
 
@@ -169,17 +233,24 @@ export default function Home() {
     const newIds = newRegions.map((r) => r.id);
     setActiveRegionIds(newIds);
 
-    // Auto-search if keyword exists? 
-    // Maybe better to let user click search, but if results are empty and keyword exists, could be nice.
-    // For now, clear results to avoid confusion (results for old region set)
-    // Or we could re-trigger search if keyword is present.
-    if (keyword.trim()) {
-      // We need to trigger search with NEW regions.  
-      // Since setState is async, we pass newRegions directly to a helper or just rely on next render?
-      // But handleSearch uses state `selectedRegions`.
-      // Let's just clear results to force re-search for clarity.
-      setSearchResults([]);
-      setHasSearched(false);
+    // 검색어가 있고 새로 추가된 지역이 있으면 해당 지역만 검색
+    if (keyword.trim() && addedRegions.length > 0 && hasSearched) {
+      // 새 지역들을 pending 상태로 설정
+      const addedStatus = {};
+      addedRegions.forEach(region => {
+        addedStatus[region.id] = { status: 'pending', completedAt: null };
+      });
+      setRegionStatus(prev => ({ ...prev, ...addedStatus }));
+
+      // 새로 추가된 지역만 순차 검색
+      for (let i = 0; i < addedRegions.length; i++) {
+        const region = addedRegions[i];
+        await searchSingleRegion(region, keyword);
+        
+        if (i < addedRegions.length - 1) {
+          await delay(getRandomDelay());
+        }
+      }
     }
   };
 
@@ -250,6 +321,14 @@ export default function Home() {
             + 지역 추가
           </button>
         </div>
+
+        {rateLimitMessage && (
+          <div className={styles.rateLimitBanner}>
+            <span className={styles.rateLimitIcon}>⚠️</span>
+            {rateLimitMessage.message} 
+            <span className={styles.remainingTime}>(잔여 시간: {rateLimitMessage.remaining}초)</span>
+          </div>
+        )}
 
         <div className={styles.mainContent}>
           <Sidebar
