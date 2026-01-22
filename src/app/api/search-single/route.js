@@ -30,8 +30,8 @@ export async function POST(request) {
         try {
             const locationQuery = `${region.name3}-${region.id}`;
             const encodedKeyword = encodeURIComponent(keyword);
-            // JSON API 엔드포인트 사용
-            const url = `https://www.daangn.com/kr/buy-sell/?in=${locationQuery}&only_on_sale=true&search=${encodedKeyword}&_data=routes%2Fkr.buy-sell._index`;
+            // JSON API 엔드포인트 사용 (모든 상품 가져옴, 프론트엔드에서 필터링)
+            const url = `https://www.daangn.com/kr/buy-sell/?in=${locationQuery}&search=${encodedKeyword}&_data=routes%2Fkr.buy-sell._index`;
 
             const response = await axios.get(url, {
                 headers: {
@@ -71,7 +71,8 @@ export async function POST(request) {
                         timeAgo,
                         content: article.content || '',
                         createdAt: article.createdAt || null,
-                        updatedAt: article.boostedAt || article.createdAt || null
+                        updatedAt: article.boostedAt || article.createdAt || null,
+                        status: article.status || '판매중' // API에서 status 제공 시 사용, 없으면 기본값
                     });
                 }
             });

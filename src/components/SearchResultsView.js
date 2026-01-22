@@ -24,8 +24,8 @@ export default function SearchResultsView({
       // If originalRegion is missing for some reason, show it (fallback)
       if (!item.originalRegion) return true;
       const regionMatch = activeRegionIds.includes(item.originalRegion.id);
-      // 거래 가능만 보기 필터
-      if (showOnlyAvailable && item.status && item.status !== '판매중') {
+      // 거래 가능만 보기 필터 (판매중이 아닌 상품 제외)
+      if (showOnlyAvailable && item.status && item.status !== '판매중' && item.status !== 'ON_SALE') {
         return false;
       }
       // 포함할 단어 필터 (모든 단어가 제목 또는 내용에 포함되어야 함)
