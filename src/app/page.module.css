@@ -134,9 +134,17 @@
 .viewSizeLabel {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  gap: 4px;
+  padding-left: 15px;
   font-size: 0.9rem;
   color: var(--text-secondary);
+}
+
+.groupTitle {
+  font-size: 32px;
+  margin-bottom: 16px;
+  color: var(--foreground);
 }
 
 .viewSizeSelect {

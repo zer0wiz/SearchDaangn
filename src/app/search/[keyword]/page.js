@@ -6,7 +6,7 @@ import axios from 'axios';
 import styles from '../../page.module.css';
 import Sidebar from '@/components/Sidebar';
 import RegionPopup from '@/components/RegionPopup';
-import ProductCard from '@/components/ProductCard';
+import SearchResultsView from '@/components/SearchResultsView';
 import { getSelectedRegions, setSelectedRegions as saveCookie } from '@/utils/cookie';
 
 export default function SearchPage() {
@@ -22,7 +22,6 @@ export default function SearchPage() {
   const [hasSearched, setHasSearched] = useState(false);
   const [showOnlyAvailable, setShowOnlyAvailable] = useState(true);
   const [regionStatus, setRegionStatus] = useState({});
-  const [viewSize, setViewSize] = useState('medium'); // 보기 크기: small, medium, large
   const [includeTags, setIncludeTags] = useState([]); // 포함할 단어
   const [excludeTags, setExcludeTags] = useState([]); // 제외할 단어
   const searchAbortRef = useRef(null);
@@ -44,31 +43,6 @@ export default function SearchPage() {
       executeSearch(selectedRegions, urlKeyword);
     }
   }, [selectedRegions, urlKeyword]);
-
-  const visibleItems = searchResults.filter((item) => {
-    if (!item.originalRegion) return true;
-    const regionMatch = activeRegionIds.includes(item.originalRegion.id);
-    if (showOnlyAvailable && item.status && item.status !== '판매중') {
-      return false;
-    }
-    // 포함할 단어 필터 (모든 단어가 제목 또는 내용에 포함되어야 함)
-    if (includeTags.length > 0) {
-      const title = item.title?.toLowerCase() || '';
-      const content = item.content?.toLowerCase() || '';
-      const searchText = title + ' ' + content;
-      const hasAllInclude = includeTags.every(tag => searchText.includes(tag.toLowerCase()));
-      if (!hasAllInclude) return false;
-    }
-    // 제외할 단어 필터 (하나라도 제목 또는 내용에 포함되면 제외)
-    if (excludeTags.length > 0) {
-      const title = item.title?.toLowerCase() || '';
-      const content = item.content?.toLowerCase() || '';
-      const searchText = title + ' ' + content;
-      const hasAnyExclude = excludeTags.some(tag => searchText.includes(tag.toLowerCase()));
-      if (hasAnyExclude) return false;
-    }
-    return regionMatch;
-  });
 
   const regionCounts = searchResults.reduce((acc, item) => {
     if (item.originalRegion?.id) {
@@ -275,49 +249,16 @@ export default function SearchPage() {
             regionStatus={regionStatus}
             onRefreshRegion={handleRefreshRegion}
           />
-          <div className={styles.content}>
-          <div className={styles.viewOptions}>
-            <label className={styles.viewSizeLabel}>
-              보기 :
-              <select
-                className={styles.viewSizeSelect}
-                value={viewSize}
-                onChange={(e) => setViewSize(e.target.value)}
-              >
-                <option value="small">작게</option>
-                <option value="medium">중간</option>
-                <option value="large">크게</option>
-              </select>
-            </label>
-          </div>
-          {loading && <div className={styles.loading}>당근마켓에서 열심히 찾는 중... 🧅</div>}
-
-          {!loading && hasSearched && visibleItems.length === 0 && (
-            <div className={styles.noResults}>
-              {searchResults.length > 0
-                ? '선택된 지역의 결과가 숨겨졌습니다. 사이드바에서 지역을 체크해주세요.'
-                : '검색 결과가 없습니다.'}
-            </div>
-          )}
-
-          {!loading && !hasSearched && selectedRegions.length > 0 && (
-            <div className={styles.placeholder}>
-              물품을 검색해보세요.
-            </div>
-          )}
-
-          {(!loading && selectedRegions.length === 0) && (
-            <div className={styles.placeholder}>
-              먼저 지역을 추가해주세요.
-            </div>
-          )}
-
-          <div className={`${styles.grid} ${styles[`grid${viewSize.charAt(0).toUpperCase() + viewSize.slice(1)}`]}`}>
-            {visibleItems.map((item, idx) => (
-              <ProductCard key={`${item.id}-${idx}`} item={item} size={viewSize} />
-            ))}
-          </div>
-          </div>
+          <SearchResultsView
+            searchResults={searchResults}
+            activeRegionIds={activeRegionIds}
+            selectedRegions={selectedRegions}
+            showOnlyAvailable={showOnlyAvailable}
+            includeTags={includeTags}
+            excludeTags={excludeTags}
+            loading={loading}
+            hasSearched={hasSearched}
+          />
         </div>
       </main>
 

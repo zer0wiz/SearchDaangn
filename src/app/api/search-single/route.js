@@ -47,8 +47,9 @@ export async function POST(request) {
 
             articles.forEach((article) => {
                 if (article && article.title && article.href) {
-                    const price = article.price 
-                        ? `${Number(article.price).toLocaleString()}원`
+                    const priceRaw = article.price ? Number(article.price) : 0;
+                    const price = priceRaw > 0
+                        ? `${priceRaw.toLocaleString()}원`
                         : '';
                     
                     // boostedAt이 있으면 끌올 시간, 없으면 createdAt 사용
@@ -62,12 +63,15 @@ export async function POST(request) {
                         id: article.id || Math.random().toString(),
                         title: article.title,
                         price,
+                        priceRaw,
                         regionName: article.region?.name || region.name3,
                         img: article.thumbnail,
                         link: article.href,
                         originalRegion: region,
                         timeAgo,
-                        content: article.content || ''
+                        content: article.content || '',
+                        createdAt: article.createdAt || null,
+                        updatedAt: article.boostedAt || article.createdAt || null
                     });
                 }
             });
