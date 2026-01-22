@@ -150,7 +150,7 @@ export default function Home() {
 
   // 지연 함수
   const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-  const getRandomDelay = (min = 800, max = 3000) => {
+  const getRandomDelay = (min = 1500, max = 5000) => {
     return Math.floor(Math.random() * (max - min + 1)) + min;
   };
 
