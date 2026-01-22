@@ -209,14 +209,20 @@ export default function Sidebar({
         onRemove(regionId);
         setOpenMenuId(null);
     };
-    // 선택된 지역들의 전체 건수 계산
-    const totalApiCount = selectedRegions?.reduce((sum, region) => {
+    // 선택된 지역들의 전체 건수 계산 (단일 항목만 합산, 그룹은 제외)
+    const singleRegions = useMemo(() => {
+        return groupedRegions
+            .filter(group => group.regions.length === 1)
+            .map(group => group.regions[0]);
+    }, [groupedRegions]);
+
+    const totalApiCount = singleRegions.reduce((sum, region) => {
         return sum + (regionApiCounts[region.id] || 0);
-    }, 0) || 0;
+    }, 0);
     
-    const totalFilteredCount = selectedRegions?.reduce((sum, region) => {
+    const totalFilteredCount = singleRegions.reduce((sum, region) => {
         return sum + (regionFilteredCounts[region.id] || 0);
-    }, 0) || 0;
+    }, 0);
 
     const handleAddIncludeTag = () => {
         const value = includeInputValue.trim();
