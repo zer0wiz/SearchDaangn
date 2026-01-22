@@ -71,7 +71,7 @@ export default function SearchResultsView({
       }
       return regionMatch;
     });
-  }, [searchResults, activeRegionIds, includeTags, excludeTags, statusFilters, showOnlyAvailable]);
+  }, [searchResults, activeRegionIds, includeTags, excludeTags, statusFilters]);
 
   // 정렬 적용
   const sortedItems = useMemo(() => {
