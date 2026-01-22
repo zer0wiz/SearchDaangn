@@ -128,7 +128,16 @@
 .viewOptions {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
   margin-bottom: 16px;
+}
+
+.resultCount {
+  margin-left: auto;
+  padding-left: 20px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--primary);
 }
 
 .viewSizeLabel {

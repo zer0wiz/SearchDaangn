@@ -117,6 +117,9 @@ export default function SearchResultsView({
             <option value="large">크게</option>
           </select>
         </label>
+        <span className={styles.resultCount}>
+          {visibleItems.length}건
+        </span>
       </div>
 
       {loading && <div className={styles.loading}>당근마켓에서 열심히 찾는 중... 🧅</div>}
