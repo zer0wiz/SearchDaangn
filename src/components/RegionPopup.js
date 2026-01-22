@@ -60,6 +60,8 @@ export default function RegionPopup({ isOpen, onClose, onSave, initialSelected =
     };
 
     const handleSave = () => {
+        // onSave가 async일 수 있지만, 모달은 바로 닫고 검색은 백그라운드에서 진행
+        // 검색 진행 상태는 사이드바의 regionStatus로 확인 가능
         onSave(selected);
         onClose();
     };
@@ -88,29 +90,7 @@ export default function RegionPopup({ isOpen, onClose, onSave, initialSelected =
                         </button>
                     </form>
 
-                    {/* Selected Regions Section */}
-                    <div className={styles.section}>
-                        <h3 className={styles.groupTitle}>선택된 지역</h3>
-                        {selected.length === 0 ? (
-                            <div className={styles.emptySelection}>선택된 지역이 없습니다.</div>
-                        ) : (
-                            <div className={styles.grid}>
-                                {selected.map((region) => (
-                                    <button
-                                        key={`selected-${region.id}`}
-                                        type="button"
-                                        className={`${styles.regionBtn} ${styles.selected}`}
-                                        onClick={() => toggleSelect(region)}
-                                    >
-                                        {region.name2} {region.name3} <span className={styles.xIcon}>×</span>
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-
-                    <hr className={styles.divider} />
-
+                    {/* Search Results Section */}
                     <div className={styles.resultsArea}>
                         <div className={styles.resultsHeader}>
                             <h3 className={styles.groupTitle} style={{ marginBottom: 0 }}>검색 결과</h3>
@@ -145,6 +125,29 @@ export default function RegionPopup({ isOpen, onClose, onSave, initialSelected =
                                 </div>
                             </div>
                         ))}
+                    </div>
+
+                    <hr className={styles.divider} />
+
+                    {/* Selected Regions Section */}
+                    <div className={styles.section}>
+                        <h3 className={styles.groupTitle}>선택된 지역</h3>
+                        {selected.length === 0 ? (
+                            <div className={styles.emptySelection}>선택된 지역이 없습니다.</div>
+                        ) : (
+                            <div className={styles.grid}>
+                                {selected.map((region) => (
+                                    <button
+                                        key={`selected-${region.id}`}
+                                        type="button"
+                                        className={`${styles.regionBtn} ${styles.selected}`}
+                                        onClick={() => toggleSelect(region)}
+                                    >
+                                        {region.name2} {region.name3} <span className={styles.xIcon}>×</span>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </div>
 
