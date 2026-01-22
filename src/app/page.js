@@ -22,6 +22,8 @@ export default function Home() {
   const [showOnlyAvailable, setShowOnlyAvailable] = useState(true); // 거래 가능만 보기
   const [regionStatus, setRegionStatus] = useState({}); // 지역별 상태 관리
   const [viewSize, setViewSize] = useState('medium'); // 보기 크기: small, medium, large
+  const [sortBy, setSortBy] = useState('none'); // 정렬: none, priceAsc, priceDesc, updatedAt
+  const [groupBy, setGroupBy] = useState('none'); // 구분: none, location
   const [includeTags, setIncludeTags] = useState([]); // 포함할 단어
   const [excludeTags, setExcludeTags] = useState([]); // 제외할 단어
   const [searchCache, setSearchCache] = useState({}); // 검색 캐시: { [cacheKey]: { items: [], timestamp: number } }
@@ -64,6 +66,31 @@ export default function Home() {
     }
     return regionMatch;
   });
+
+  // 정렬 적용
+  const sortedItems = [...visibleItems].sort((a, b) => {
+    if (sortBy === 'priceAsc') {
+      return (a.price || 0) - (b.price || 0);
+    } else if (sortBy === 'priceDesc') {
+      return (b.price || 0) - (a.price || 0);
+    } else if (sortBy === 'updatedAt') {
+      const dateA = new Date(a.updatedAt || a.createdAt || 0);
+      const dateB = new Date(b.updatedAt || b.createdAt || 0);
+      return dateB - dateA;
+    }
+    return 0;
+  });
+
+  // 그룹화 적용
+  const groupedItems = groupBy === 'location'
+    ? selectedRegions.reduce((acc, region) => {
+        const items = sortedItems.filter(item => item.originalRegion?.id === region.id);
+        if (items.length > 0) {
+          acc.push({ region, items });
+        }
+        return acc;
+      }, [])
+    : null;
 
   // 지역별 검색 결과 건수 계산
   const regionCounts = searchResults.reduce((acc, item) => {
@@ -350,6 +377,30 @@ export default function Home() {
           <div className={styles.content}>
           <div className={styles.viewOptions}>
             <label className={styles.viewSizeLabel}>
+              구분 :
+              <select
+                className={styles.viewSizeSelect}
+                value={groupBy}
+                onChange={(e) => setGroupBy(e.target.value)}
+              >
+                <option value="none">구분 없음</option>
+                <option value="location">위치</option>
+              </select>
+            </label>
+            <label className={styles.viewSizeLabel}>
+              정렬 :
+              <select
+                className={styles.viewSizeSelect}
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+              >
+                <option value="none">정렬 없음</option>
+                <option value="priceAsc">최저 가격</option>
+                <option value="priceDesc">최고 가격</option>
+                <option value="updatedAt">업데이트일자</option>
+              </select>
+            </label>
+            <label className={styles.viewSizeLabel}>
               보기 :
               <select
                 className={styles.viewSizeSelect}
@@ -384,11 +435,24 @@ export default function Home() {
             </div>
           )}
 
-          <div className={`${styles.grid} ${styles[`grid${viewSize.charAt(0).toUpperCase() + viewSize.slice(1)}`]}`}>
-            {visibleItems.map((item, idx) => (
-              <ProductCard key={`${item.id}-${idx}`} item={item} size={viewSize} />
-            ))}
-          </div>
+          {groupedItems ? (
+            groupedItems.map(({ region, items }) => (
+              <div key={region.id} className={styles.groupSection}>
+                <h3 className={styles.groupTitle}>{region.name3}</h3>
+                <div className={`${styles.grid} ${styles[`grid${viewSize.charAt(0).toUpperCase() + viewSize.slice(1)}`]}`}>
+                  {items.map((item, idx) => (
+                    <ProductCard key={`${item.id}-${idx}`} item={item} size={viewSize} />
+                  ))}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className={`${styles.grid} ${styles[`grid${viewSize.charAt(0).toUpperCase() + viewSize.slice(1)}`]}`}>
+              {sortedItems.map((item, idx) => (
+                <ProductCard key={`${item.id}-${idx}`} item={item} size={viewSize} />
+              ))}
+            </div>
+          )}
           </div>
         </div>
       </main>
