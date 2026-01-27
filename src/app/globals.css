@@ -10,6 +10,10 @@
   --sidebar-width: 336px;
   --header-height: 80px;
   --radius: 12px;
+  
+  /* Responsive breakpoints */
+  --breakpoint-mobile: 768px;
+  --breakpoint-tablet: 1024px;
 }
 
 * {

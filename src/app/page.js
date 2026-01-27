@@ -7,6 +7,7 @@ import Sidebar from '@/components/Sidebar';
 import RegionPopup from '@/components/RegionPopup';
 import SearchResultsView from '@/components/SearchResultsView';
 import { getSelectedRegions, setSelectedRegions as saveCookie } from '@/utils/cookie';
+import { saveSearchState, getSearchState, getExcludedItems, saveExcludedItems } from '@/utils/storage';
 
 // 지역 상태: pending(대기), loading(로딩), completed(완료)
 // regionStatus: { [regionId]: { status: 'pending'|'loading'|'completed', completedAt: Date|null } }
@@ -29,16 +30,86 @@ export default function Home() {
   const [searchCache, setSearchCache] = useState({}); // 검색 캐시: { [cacheKey]: { items: [], timestamp: number } }
   const [rateLimitMessage, setRateLimitMessage] = useState(null); // 제한 메시지
   const [validationMessage, setValidationMessage] = useState(null); // 유효성 검사 메시지
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // 모바일 사이드바 상태
+  const [excludedItems, setExcludedItems] = useState([]); // 제외된 아이템
   const searchAbortRef = useRef(null); // 검색 중단용
 
-  // Load cookies on mount
+  // Load saved state on mount
   useEffect(() => {
-    const saved = getSelectedRegions();
-    if (saved && saved.length > 0) {
-      setSelectedRegions(saved);
-      setActiveRegionIds(saved.map((r) => r.id));
+    // 제외 아이템 복원 (localStorage)
+    const savedExcluded = getExcludedItems();
+    if (savedExcluded && savedExcluded.length > 0) {
+      setExcludedItems(savedExcluded);
+    }
+
+    // 검색 상태 복원 (localStorage) - 지역 정보 포함
+    const savedState = getSearchState();
+    if (savedState) {
+      if (savedState.keyword) setKeyword(savedState.keyword);
+      if (savedState.searchResults) setSearchResults(savedState.searchResults);
+      if (savedState.hasSearched !== undefined) setHasSearched(savedState.hasSearched);
+      if (savedState.showOnlyAvailable !== undefined) setShowOnlyAvailable(savedState.showOnlyAvailable);
+      if (savedState.lastSearchedOnlyAvailable !== undefined) setLastSearchedOnlyAvailable(savedState.lastSearchedOnlyAvailable);
+      if (savedState.includeTags) setIncludeTags(savedState.includeTags);
+      if (savedState.excludeTags) setExcludeTags(savedState.excludeTags);
+      if (savedState.statusFilters) setStatusFilters(savedState.statusFilters);
+      if (savedState.activeRegionIds) setActiveRegionIds(savedState.activeRegionIds);
+      if (savedState.regionStatus) setRegionStatus(savedState.regionStatus);
+      // localStorage에서 지역 정보 복원 (우선)
+      if (savedState.selectedRegions && savedState.selectedRegions.length > 0) {
+        setSelectedRegions(savedState.selectedRegions);
+        // 쿠키도 동기화
+        saveCookie(savedState.selectedRegions);
+      } else {
+        // localStorage에 없으면 쿠키에서 복원 (fallback)
+        const savedRegions = getSelectedRegions();
+        if (savedRegions && savedRegions.length > 0) {
+          setSelectedRegions(savedRegions);
+          if (!savedState.activeRegionIds) {
+            setActiveRegionIds(savedRegions.map((r) => r.id));
+          }
+        }
+      }
+    } else {
+      // localStorage에 저장된 상태가 없으면 쿠키에서 지역 정보만 복원
+      const savedRegions = getSelectedRegions();
+      if (savedRegions && savedRegions.length > 0) {
+        setSelectedRegions(savedRegions);
+        setActiveRegionIds(savedRegions.map((r) => r.id));
+      }
     }
   }, []);
+
+  // 상태 변경 시 localStorage에 저장 (검색 결과가 있을 때만)
+  useEffect(() => {
+    if (hasSearched) {
+      saveSearchState({
+        keyword,
+        searchResults,
+        hasSearched,
+        showOnlyAvailable,
+        lastSearchedOnlyAvailable,
+        includeTags,
+        excludeTags,
+        statusFilters,
+        activeRegionIds,
+        regionStatus,
+        selectedRegions, // 지역 정보도 localStorage에 저장
+      });
+    }
+  }, [
+    keyword,
+    searchResults,
+    hasSearched,
+    showOnlyAvailable,
+    lastSearchedOnlyAvailable,
+    includeTags,
+    excludeTags,
+    statusFilters,
+    activeRegionIds,
+    regionStatus,
+    selectedRegions,
+  ]);
 
   // API 상태값을 내부 상태 키로 매핑
   const STATUS_MAP = {
@@ -340,37 +411,13 @@ export default function Home() {
     setLoading(false);
   };
 
-  const handleSaveRegions = async (newRegions) => {
-    // 새로 추가된 지역 찾기
-    const existingIds = selectedRegions.map(r => r.id);
-    const addedRegions = newRegions.filter(r => !existingIds.includes(r.id));
-
+  const handleSaveRegions = (newRegions) => {
     setSelectedRegions(newRegions);
     saveCookie(newRegions);
 
     // Auto-check new regions
     const newIds = newRegions.map((r) => r.id);
     setActiveRegionIds(newIds);
-
-    // 검색어가 있고 새로 추가된 지역이 있으면 해당 지역만 검색
-    if (keyword.trim() && addedRegions.length > 0 && hasSearched) {
-      // 새 지역들을 pending 상태로 설정
-      const addedStatus = {};
-      addedRegions.forEach(region => {
-        addedStatus[region.id] = { status: 'pending', completedAt: null };
-      });
-      setRegionStatus(prev => ({ ...prev, ...addedStatus }));
-
-      // 새로 추가된 지역만 순차 검색
-      for (let i = 0; i < addedRegions.length; i++) {
-        const region = addedRegions[i];
-        await searchSingleRegion(region, keyword);
-        
-        if (i < addedRegions.length - 1) {
-          await delay(getRandomDelay());
-        }
-      }
-    }
   };
 
   const handleToggleRegion = (id) => {
@@ -397,6 +444,37 @@ export default function Home() {
 
     // Remove items from results that belonged to this region
     setSearchResults((prev) => prev.filter((item) => String(item.originalRegion?.id) !== idStr));
+  };
+
+  // 제외 아이템 핸들러
+  const handleExclude = (item) => {
+    const itemLink = item.link;
+    const isAlreadyExcluded = excludedItems.some(e => e.link === itemLink);
+    
+    if (isAlreadyExcluded) {
+      // 이미 제외된 경우 해제
+      const newExcluded = excludedItems.filter(e => e.link !== itemLink);
+      setExcludedItems(newExcluded);
+      saveExcludedItems(newExcluded);
+    } else {
+      // 제외 추가
+      const newExcludedItem = {
+        link: item.link,
+        title: item.title,
+        regionId: item.originalRegion?.id,
+        regionName: item.regionName
+      };
+      const newExcluded = [...excludedItems, newExcludedItem];
+      setExcludedItems(newExcluded);
+      saveExcludedItems(newExcluded);
+    }
+  };
+
+  // 제외 해제 핸들러 (사이드바에서 사용)
+  const handleRemoveExclude = (link) => {
+    const newExcluded = excludedItems.filter(e => e.link !== link);
+    setExcludedItems(newExcluded);
+    saveExcludedItems(newExcluded);
   };
 
   return (
@@ -487,6 +565,10 @@ export default function Home() {
             regionStatus={regionStatus}
             onRefreshRegion={handleRefreshRegion}
             onRefreshRegions={handleRefreshRegions}
+            isOpen={isSidebarOpen}
+            onClose={() => setIsSidebarOpen(false)}
+            excludedItems={excludedItems}
+            onRemoveExclude={handleRemoveExclude}
           />
           <SearchResultsView
             searchResults={searchResults}
@@ -497,6 +579,8 @@ export default function Home() {
             statusFilters={statusFilters}
             loading={loading}
             hasSearched={hasSearched}
+            excludedItems={excludedItems}
+            onExclude={handleExclude}
           />
         </div>
       </main>
@@ -509,6 +593,17 @@ export default function Home() {
           initialSelected={selectedRegions}
         />
       )}
+
+      {/* 모바일 메뉴 토글 버튼 */}
+      <button 
+        className={styles.mobileMenuBtn}
+        onClick={() => setIsSidebarOpen(true)}
+        aria-label="필터 메뉴 열기"
+      >
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M3 6H21M3 12H21M3 18H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+        </svg>
+      </button>
     </div>
   );
 }

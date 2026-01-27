@@ -34,14 +34,28 @@ export default function SearchResultsView({
   statusFilters = ['ongoing', 'reserved', 'sold'],
   loading,
   hasSearched,
+  excludedItems = [],
+  onExclude,
 }) {
   const [viewSize, setViewSize] = useState('medium'); // 보기 크기: small, medium, large
   const [sortBy, setSortBy] = useState('none'); // 정렬: none, priceAsc, priceDesc, updatedAt
   const [groupBy, setGroupBy] = useState('none'); // 구분: none, location
+  const [excludeOption, setExcludeOption] = useState('hide'); // 제외 옵션: hide(미노출), all(전체), only(제외만)
+
+  // 제외 링크 Set (빠른 조회용)
+  const excludedLinks = useMemo(() => new Set(excludedItems.map(item => item.link)), [excludedItems]);
 
   // Filter results based on checked checkboxes and word filters
   const visibleItems = useMemo(() => {
     return searchResults.filter((item) => {
+      const isExcluded = excludedLinks.has(item.link);
+
+      // 제외 옵션에 따른 필터링
+      if (excludeOption === 'hide' && isExcluded) return false;
+      if (excludeOption === 'only' && !isExcluded) return false;
+      
+      // 'all'일 경우 모두 표시 (단, 제외된 항목은 시각적으로 구분됨)
+
       // If originalRegion is missing for some reason, show it (fallback)
       if (!item.originalRegion) return true;
       // 타입 불일치 방지를 위해 문자열로 변환하여 비교
@@ -71,7 +85,7 @@ export default function SearchResultsView({
       }
       return regionMatch;
     });
-  }, [searchResults, activeRegionIds, includeTags, excludeTags, statusFilters]);
+  }, [searchResults, activeRegionIds, includeTags, excludeTags, statusFilters, excludedLinks, excludeOption]);
 
   // 정렬 적용
   const sortedItems = useMemo(() => {
@@ -142,8 +156,25 @@ export default function SearchResultsView({
             <option value="large">크게</option>
           </select>
         </label>
+        <label className={styles.viewSizeLabel}>
+          제외 :
+          <select
+            className={styles.viewSizeSelect}
+            value={excludeOption}
+            onChange={(e) => setExcludeOption(e.target.value)}
+          >
+            <option value="hide">제외항목 미노출</option>
+            <option value="all">전체보기</option>
+            <option value="only">제외항목만 노출</option>
+          </select>
+        </label>
         <span className={styles.resultCount}>
           {visibleItems.length}건
+          {excludedItems.length > 0 && (
+            <span style={{ fontSize: '0.8em', marginLeft: '8px', color: '#ef4444' }}>
+              (제외 {excludedItems.length}건)
+            </span>
+          )}
         </span>
       </div>
 
@@ -152,7 +183,7 @@ export default function SearchResultsView({
       {!loading && hasSearched && visibleItems.length === 0 && (
         <div className={styles.noResults}>
           {searchResults.length > 0
-            ? '선택된 지역의 결과가 숨겨졌습니다. 사이드바에서 지역을 체크해주세요.'
+            ? '선택된 조건의 결과가 없습니다.'
             : '검색 결과가 없습니다.'}
         </div>
       )}
@@ -175,7 +206,13 @@ export default function SearchResultsView({
             <h3 className={styles.groupTitle}>{region.name3}</h3>
             <div className={gridClassName}>
               {items.map((item, idx) => (
-                <ProductCard key={`${item.id}-${idx}`} item={item} size={viewSize} />
+                <ProductCard 
+                  key={`${item.id}-${idx}`} 
+                  item={item} 
+                  size={viewSize}
+                  isExcluded={excludedLinks.has(item.link)}
+                  onExclude={onExclude}
+                />
               ))}
             </div>
           </div>
@@ -183,7 +220,13 @@ export default function SearchResultsView({
       ) : (
         <div className={gridClassName}>
           {sortedItems.map((item, idx) => (
-            <ProductCard key={`${item.id}-${idx}`} item={item} size={viewSize} />
+            <ProductCard 
+              key={`${item.id}-${idx}`} 
+              item={item} 
+              size={viewSize}
+              isExcluded={excludedLinks.has(item.link)}
+              onExclude={onExclude}
+            />
           ))}
         </div>
       )}

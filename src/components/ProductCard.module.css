@@ -3,9 +3,16 @@
     flex-direction: column;
     background-color: var(--secondary);
     border-radius: var(--radius);
-    overflow: hidden;
+    overflow: visible;
     transition: transform 0.2s, box-shadow 0.2s;
     height: 100%;
+    position: relative;
+}
+
+/* 제외된 카드 스타일 */
+.excluded {
+    opacity: 0.6;
+    filter: grayscale(0.5);
 }
 
 .card:hover {
@@ -20,6 +27,7 @@
     background-color: #000;
     overflow: hidden;
     position: relative;
+    border-radius: var(--radius) var(--radius) 0 0;
 }
 
 /* 상태 배지 (예약중, 판매완료) */
@@ -94,6 +102,48 @@
     opacity: 0.7;
 }
 
+/* 제외 버튼 - 오른쪽 상단, 호버 시에만 표시 */
+.excludeBtn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background-color: rgba(0, 0, 0, 0.6);
+    color: white;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s, background-color 0.2s, transform 0.1s;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.card:hover .excludeBtn {
+    opacity: 1;
+}
+
+.excludeBtn:hover {
+    background-color: #ef4444;
+    transform: scale(1.1);
+}
+
+.excludeBtn:active {
+    transform: scale(0.95);
+}
+
+/* 제외된 상태의 버튼 - 항상 표시 */
+.excludeBtnActive {
+    opacity: 1;
+    background-color: #ef4444;
+}
+
 /* 작게 보기: 50% */
 .cardSmall .content {
     padding: 8px;
@@ -149,4 +199,118 @@
     font-size: 1rem;
     top: 12px;
     left: 12px;
+}
+
+/* 모바일 반응형 */
+@media (max-width: 768px) {
+    /* 모바일에서 hover 효과 제거 (터치 디바이스) */
+    .card:hover {
+        transform: none;
+        box-shadow: none;
+    }
+
+    .card:hover .image {
+        transform: none;
+    }
+
+    /* 터치 시 피드백 */
+    .card:active {
+        transform: scale(0.98);
+        opacity: 0.9;
+    }
+
+    /* 모바일에서 제외 버튼 항상 표시 */
+    .excludeBtn {
+        opacity: 1;
+    }
+
+    .content {
+        padding: 12px;
+    }
+
+    .title {
+        font-size: 0.9rem;
+        margin-bottom: 6px;
+    }
+
+    .price {
+        font-size: 1rem;
+        margin-bottom: 6px;
+    }
+
+    .footer {
+        font-size: 0.75rem;
+    }
+
+    .statusBadge {
+        padding: 4px 8px;
+        font-size: 0.65rem;
+        top: 6px;
+        left: 6px;
+    }
+
+    /* 모바일 작게 보기 */
+    .cardSmall .content {
+        padding: 6px;
+    }
+
+    .cardSmall .title {
+        font-size: 0.65rem;
+        -webkit-line-clamp: 1;
+        line-clamp: 1;
+    }
+
+    .cardSmall .price {
+        font-size: 0.7rem;
+    }
+
+    .cardSmall .footer {
+        font-size: 0.55rem;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+    }
+
+    .cardSmall .statusBadge {
+        padding: 2px 4px;
+        font-size: 0.5rem;
+        top: 3px;
+        left: 3px;
+    }
+
+    /* 모바일 크게 보기 */
+    .cardLarge .content {
+        padding: 16px;
+    }
+
+    .cardLarge .title {
+        font-size: 1.1rem;
+    }
+
+    .cardLarge .price {
+        font-size: 1.2rem;
+    }
+
+    .cardLarge .footer {
+        font-size: 0.85rem;
+    }
+}
+
+/* 작은 모바일 */
+@media (max-width: 480px) {
+    .content {
+        padding: 10px;
+    }
+
+    .title {
+        font-size: 0.85rem;
+    }
+
+    .price {
+        font-size: 0.95rem;
+    }
+
+    .footer {
+        font-size: 0.7rem;
+    }
 }

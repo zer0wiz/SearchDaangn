@@ -8,6 +8,7 @@ import Sidebar from '@/components/Sidebar';
 import RegionPopup from '@/components/RegionPopup';
 import SearchResultsView from '@/components/SearchResultsView';
 import { getSelectedRegions, setSelectedRegions as saveCookie } from '@/utils/cookie';
+import { saveSearchState, getSearchState, getExcludedItems, saveExcludedItems } from '@/utils/storage';
 
 export default function SearchPage() {
   const params = useParams();
@@ -27,17 +28,44 @@ export default function SearchPage() {
   const [includeTags, setIncludeTags] = useState([]); // 포함할 단어
   const [excludeTags, setExcludeTags] = useState([]); // 제외할 단어
   const [statusFilters, setStatusFilters] = useState(['ongoing']); // 상태 필터 (초기: 거래가능만)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // 모바일 사이드바 상태
+  const [excludedItems, setExcludedItems] = useState([]); // 제외된 아이템
   const searchAbortRef = useRef(null);
   const hasAutoSearched = useRef(false);
 
-  // Load cookies on mount
+  // Load saved state on mount
   useEffect(() => {
-    const saved = getSelectedRegions();
-    if (saved && saved.length > 0) {
-      setSelectedRegions(saved);
-      setActiveRegionIds(saved.map((r) => r.id));
+    // 지역 정보 복원 (쿠키)
+    const savedRegions = getSelectedRegions();
+    if (savedRegions && savedRegions.length > 0) {
+      setSelectedRegions(savedRegions);
+      setActiveRegionIds(savedRegions.map((r) => r.id));
     }
-  }, []);
+
+    // 제외 아이템 복원 (localStorage)
+    const savedExcluded = getExcludedItems();
+    if (savedExcluded && savedExcluded.length > 0) {
+      setExcludedItems(savedExcluded);
+    }
+
+    // 검색 상태 복원 (localStorage) - URL 키워드가 저장된 키워드와 같을 때만
+    const savedState = getSearchState();
+    if (savedState && savedState.keyword === urlKeyword) {
+      if (savedState.searchResults) setSearchResults(savedState.searchResults);
+      if (savedState.hasSearched !== undefined) setHasSearched(savedState.hasSearched);
+      if (savedState.showOnlyAvailable !== undefined) setShowOnlyAvailable(savedState.showOnlyAvailable);
+      if (savedState.lastSearchedOnlyAvailable !== undefined) setLastSearchedOnlyAvailable(savedState.lastSearchedOnlyAvailable);
+      if (savedState.includeTags) setIncludeTags(savedState.includeTags);
+      if (savedState.excludeTags) setExcludeTags(savedState.excludeTags);
+      if (savedState.statusFilters) setStatusFilters(savedState.statusFilters);
+      if (savedState.activeRegionIds) setActiveRegionIds(savedState.activeRegionIds);
+      if (savedState.regionStatus) setRegionStatus(savedState.regionStatus);
+      // 저장된 결과가 있으면 자동 검색 스킵
+      if (savedState.searchResults && savedState.searchResults.length > 0) {
+        hasAutoSearched.current = true;
+      }
+    }
+  }, [urlKeyword]);
 
   // Auto search when regions are loaded and keyword exists
   useEffect(() => {
@@ -46,6 +74,35 @@ export default function SearchPage() {
       executeSearch(selectedRegions, urlKeyword);
     }
   }, [selectedRegions, urlKeyword]);
+
+  // 상태 변경 시 localStorage에 저장 (검색 결과가 있을 때만)
+  useEffect(() => {
+    if (hasSearched) {
+      saveSearchState({
+        keyword,
+        searchResults,
+        hasSearched,
+        showOnlyAvailable,
+        lastSearchedOnlyAvailable,
+        includeTags,
+        excludeTags,
+        statusFilters,
+        activeRegionIds,
+        regionStatus,
+      });
+    }
+  }, [
+    keyword,
+    searchResults,
+    hasSearched,
+    showOnlyAvailable,
+    lastSearchedOnlyAvailable,
+    includeTags,
+    excludeTags,
+    statusFilters,
+    activeRegionIds,
+    regionStatus,
+  ]);
 
   // API 상태값을 내부 상태 키로 매핑
   const STATUS_MAP = {
@@ -297,6 +354,37 @@ export default function SearchPage() {
     setSearchResults((prev) => prev.filter((item) => String(item.originalRegion?.id) !== idStr));
   };
 
+  // 제외 아이템 핸들러
+  const handleExclude = (item) => {
+    const itemLink = item.link;
+    const isAlreadyExcluded = excludedItems.some(e => e.link === itemLink);
+    
+    if (isAlreadyExcluded) {
+      // 이미 제외된 경우 해제
+      const newExcluded = excludedItems.filter(e => e.link !== itemLink);
+      setExcludedItems(newExcluded);
+      saveExcludedItems(newExcluded);
+    } else {
+      // 제외 추가
+      const newExcludedItem = {
+        link: item.link,
+        title: item.title,
+        regionId: item.originalRegion?.id,
+        regionName: item.regionName
+      };
+      const newExcluded = [...excludedItems, newExcludedItem];
+      setExcludedItems(newExcluded);
+      saveExcludedItems(newExcluded);
+    }
+  };
+
+  // 제외 해제 핸들러 (사이드바에서 사용)
+  const handleRemoveExclude = (link) => {
+    const newExcluded = excludedItems.filter(e => e.link !== link);
+    setExcludedItems(newExcluded);
+    saveExcludedItems(newExcluded);
+  };
+
   return (
     <div className={styles.container}>
       <main className={styles.main}>
@@ -360,6 +448,10 @@ export default function SearchPage() {
             onStatusFiltersChange={setStatusFilters}
             regionStatus={regionStatus}
             onRefreshRegion={handleRefreshRegion}
+            isOpen={isSidebarOpen}
+            onClose={() => setIsSidebarOpen(false)}
+            excludedItems={excludedItems}
+            onRemoveExclude={handleRemoveExclude}
           />
           <SearchResultsView
             searchResults={searchResults}
@@ -370,6 +462,8 @@ export default function SearchPage() {
             statusFilters={statusFilters}
             loading={loading}
             hasSearched={hasSearched}
+            excludedItems={excludedItems}
+            onExclude={handleExclude}
           />
         </div>
       </main>
@@ -382,6 +476,17 @@ export default function SearchPage() {
           initialSelected={selectedRegions}
         />
       )}
+
+      {/* 모바일 메뉴 토글 버튼 */}
+      <button 
+        className={styles.mobileMenuBtn}
+        onClick={() => setIsSidebarOpen(true)}
+        aria-label="필터 메뉴 열기"
+      >
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M3 6H21M3 12H21M3 18H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+        </svg>
+      </button>
     </div>
   );
 }

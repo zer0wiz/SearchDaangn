@@ -156,6 +156,22 @@
   color: var(--foreground);
 }
 
+/* 고정된 항목 섹션 */
+.pinnedSection {
+  margin-bottom: 32px;
+  padding: 20px;
+  background-color: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: var(--radius);
+}
+
+.pinnedSectionTitle {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: #f59e0b;
+}
+
 .viewSizeSelect {
   padding: 6px 12px;
   border-radius: 6px;
@@ -280,5 +296,218 @@
   to {
     transform: translateY(0);
     opacity: 1;
+  }
+}
+
+/* 모바일 메뉴 토글 버튼 */
+.mobileMenuBtn {
+  display: none;
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 999;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background-color: var(--primary);
+  color: white;
+  box-shadow: 0 4px 12px rgba(155, 89, 182, 0.4);
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.mobileMenuBtn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(155, 89, 182, 0.5);
+}
+
+.mobileMenuBtn:active {
+  transform: scale(0.95);
+}
+
+/* 태블릿 반응형 (769px ~ 1024px) */
+@media (max-width: 1024px) {
+  .main {
+    padding: 24px;
+  }
+
+  .headerContainer {
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .siteLogo {
+    width: auto;
+  }
+
+  .siteLogo svg {
+    height: 56px;
+  }
+
+  .logoTitle {
+    font-size: 36px;
+  }
+
+  .logoSubtitle {
+    font-size: 0.65rem;
+  }
+
+  .mainContent {
+    gap: 16px;
+  }
+}
+
+/* 모바일 반응형 (768px 이하) */
+@media (max-width: 768px) {
+  .main {
+    padding: 16px;
+  }
+
+  .headerContainer {
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .siteLogo {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .siteLogo svg {
+    height: 48px;
+  }
+
+  .logoTitle {
+    font-size: 28px;
+  }
+
+  .logoSubtitle {
+    font-size: 0.6rem;
+  }
+
+  .logoText {
+    width: auto;
+  }
+
+  .searchBar {
+    width: 100%;
+    padding: 6px;
+  }
+
+  .searchInput {
+    font-size: 1rem;
+    padding: 0 12px;
+  }
+
+  .searchBtn {
+    padding: 10px 16px;
+    font-size: 0.9rem;
+  }
+
+  .addRegionBtn {
+    width: 100%;
+    height: 48px;
+    padding: 0 16px;
+  }
+
+  .mainContent {
+    flex-direction: column;
+  }
+
+  .content {
+    width: 100%;
+  }
+
+  .viewOptions {
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-start;
+  }
+
+  .viewSizeLabel {
+    padding-left: 0;
+    font-size: 0.8rem;
+  }
+
+  .viewSizeSelect {
+    padding: 4px 8px;
+    font-size: 0.8rem;
+  }
+
+  .resultCount {
+    width: 100%;
+    text-align: right;
+    padding-left: 0;
+    margin-left: 0;
+    order: -1;
+  }
+
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .gridSmall {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+
+  .gridMedium {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .gridLarge {
+    grid-template-columns: repeat(1, 1fr);
+    gap: 16px;
+  }
+
+  .groupTitle {
+    font-size: 20px;
+    margin-bottom: 12px;
+  }
+
+  .loading,
+  .noResults,
+  .placeholder {
+    padding: 40px 0;
+    font-size: 1rem;
+  }
+
+  .mobileMenuBtn {
+    display: flex;
+  }
+
+  .validationBanner,
+  .rateLimitBanner {
+    padding: 10px 14px;
+    font-size: 0.85rem;
+  }
+}
+
+/* 작은 모바일 (480px 이하) */
+@media (max-width: 480px) {
+  .main {
+    padding: 12px;
+  }
+
+  .siteLogo svg {
+    height: 40px;
+  }
+
+  .logoTitle {
+    font-size: 24px;
+  }
+
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .gridSmall {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
   }
 }

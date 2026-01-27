@@ -13,8 +13,8 @@ export const getSelectedRegions = () => {
 };
 
 export const setSelectedRegions = (regions) => {
-  // Store for 365 days
-  Cookies.set(COOKIE_NAME, JSON.stringify(regions), { expires: 365 });
+  // Store for 30 days
+  Cookies.set(COOKIE_NAME, JSON.stringify(regions), { expires: 30 });
 };
 
 export const addRegion = (region) => {

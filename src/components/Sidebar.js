@@ -70,7 +70,13 @@ export default function Sidebar({
     onStatusFiltersChange,
     regionStatus = {},
     onRefreshRegion,
-    onRefreshRegions
+    onRefreshRegions,
+    isOpen = false,
+    onClose,
+    pinnedItems = [],
+    excludedItems = [],
+    onRemovePin,
+    onRemoveExclude
 }) {
     const [showIncludeInput, setShowIncludeInput] = useState(false);
     const [showExcludeInput, setShowExcludeInput] = useState(false);
@@ -80,8 +86,29 @@ export default function Sidebar({
     const [openMenuId, setOpenMenuId] = useState(null); // 열린 옵션 메뉴의 region id
     const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 }); // 메뉴 위치
     const [expandedGroups, setExpandedGroups] = useState({}); // 그룹 펼침 상태
+    const [expandedPinExclude, setExpandedPinExclude] = useState({}); // 고정/제외 펼침 상태
     const menuRef = useRef(null);
     const [, setTimeUpdate] = useState(0);
+
+    // 지역별 제외 아이템 수 계산
+    const getExcludedCount = (regionId) => {
+        const regionIdStr = String(regionId);
+        return excludedItems.filter(item => String(item.regionId) === regionIdStr).length;
+    };
+
+    // 지역별 제외 아이템 목록
+    const getExcludedItems = (regionId) => {
+        const regionIdStr = String(regionId);
+        return excludedItems.filter(item => String(item.regionId) === regionIdStr);
+    };
+
+    // 제외 섹션 토글
+    const toggleExclude = (regionId) => {
+        setExpandedPinExclude(prev => ({
+            ...prev,
+            [regionId]: !prev[regionId]
+        }));
+    };
 
     // 지역을 name1 + name2 기준으로 그룹화
     const groupedRegions = useMemo(() => {
@@ -355,10 +382,23 @@ export default function Sidebar({
 
     // 검색결과 필터링 섹션은 렌더링 시 직접 구성
 
+    // 사이드바 클래스 (모바일 열림 상태 포함)
+    const sidebarClassName = `${styles.sidebar} ${isOpen ? styles.open : ''}`;
+
     if (!selectedRegions || selectedRegions.length === 0) {
         return (
-            <aside className={styles.sidebar}>
-                {searchConditionSection}
+            <>
+                {/* 모바일 오버레이 */}
+                <div 
+                    className={`${styles.sidebarOverlay} ${isOpen ? styles.visible : ''}`}
+                    onClick={onClose}
+                />
+                <aside className={sidebarClassName}>
+                    {/* 모바일 닫기 버튼 */}
+                    <button className={styles.mobileCloseBtn} onClick={onClose}>
+                        ×
+                    </button>
+                    {searchConditionSection}
                 <div className={styles.searchConditionSection}>
                     <div className={styles.filterHeader}>
                         <h2>검색결과 필터링</h2>
@@ -466,7 +506,8 @@ export default function Sidebar({
                         </div>
                     </div>
                 </div>
-            </aside>
+                </aside>
+            </>
         );
     }
 
@@ -476,6 +517,10 @@ export default function Sidebar({
         const isPending = status?.status === 'pending';
         const isLoading = status?.status === 'loading';
         const isCompleted = status?.status === 'completed';
+        const excludedCount = getExcludedCount(region.id);
+        const hasExcluded = excludedCount > 0;
+        const isExpanded = expandedPinExclude[region.id];
+        const excluded = getExcludedItems(region.id);
         
         return (
             <li key={region.id} className={`${styles.item} ${isChild ? styles.childItem : ''}`}>
@@ -496,7 +541,13 @@ export default function Sidebar({
                     </label>
                     <div className={styles.statusArea}>
                         {isPending && (
-                            <span className={styles.statusPending}>대기</span>
+                            <button
+                                className={styles.searchPendingBtn}
+                                onClick={() => onRefreshRegion(region.id)}
+                                title="이 지역 검색"
+                            >
+                                검색
+                            </button>
                         )}
                         {isLoading && (
                             <span className={styles.statusLoading}>
@@ -535,6 +586,38 @@ export default function Sidebar({
                         </svg>
                     </button>
                 </div>
+                {/* 제외 정보 */}
+                {hasExcluded && (
+                    <div className={styles.pinnedExcludedSection}>
+                        <button 
+                            className={styles.pinnedExcludedToggle}
+                            onClick={() => toggleExclude(region.id)}
+                        >
+                            <span className={styles.pinnedExcludedInfo}>
+                                <span className={styles.excludedInfo}>제외 : {excludedCount}건</span>
+                            </span>
+                            <ArrowIcon expanded={isExpanded} />
+                        </button>
+                        {isExpanded && (
+                            <div className={styles.pinnedExcludedList}>
+                                <div className={styles.excludedList}>
+                                    {excluded.map((item, idx) => (
+                                        <div key={idx} className={styles.excludedItem}>
+                                            <span className={styles.excludedItemTitle}>{item.title}</span>
+                                            <button 
+                                                className={styles.excludedItemRemove}
+                                                onClick={() => onRemoveExclude && onRemoveExclude(item.link)}
+                                                title="제외 취소"
+                                            >
+                                                ×
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
             </li>
         );
     };
@@ -580,7 +663,19 @@ export default function Sidebar({
                         </label>
                         <div className={styles.statusArea}>
                             {stats.hasPending && !stats.hasLoading && (
-                                <span className={styles.statusPending}>대기</span>
+                                <button
+                                    className={styles.searchPendingBtn}
+                                    onClick={() => {
+                                        // 해당 그룹의 대기 상태 지역만 검색
+                                        const pendingInGroup = regions.filter(r => regionStatus[r.id]?.status === 'pending');
+                                        if (pendingInGroup.length > 0 && onRefreshRegions) {
+                                            onRefreshRegions(pendingInGroup.map(r => r.id));
+                                        }
+                                    }}
+                                    title={`대기 중인 지역 검색`}
+                                >
+                                    검색 ({regions.filter(r => regionStatus[r.id]?.status === 'pending').length})
+                                </button>
                             )}
                             {stats.hasLoading && (
                                 <span className={styles.statusLoading}>
@@ -632,9 +727,19 @@ export default function Sidebar({
     };
 
     return (
-        <aside className={styles.sidebar}>
-            {searchConditionSection}
-            <div className={styles.searchConditionSection}>
+        <>
+            {/* 모바일 오버레이 */}
+            <div 
+                className={`${styles.sidebarOverlay} ${isOpen ? styles.visible : ''}`}
+                onClick={onClose}
+            />
+            <aside className={sidebarClassName}>
+                {/* 모바일 닫기 버튼 */}
+                <button className={styles.mobileCloseBtn} onClick={onClose}>
+                    ×
+                </button>
+                {searchConditionSection}
+                <div className={styles.searchConditionSection}>
                 <div className={styles.filterHeader}>
                     <h2>검색결과 필터링</h2>
                     <button className={styles.resetBtn} onClick={onResetFilter}>
@@ -751,20 +856,21 @@ export default function Sidebar({
                     </ul>
                 </div>
             </div>
-            {openMenuId !== null && (
-                <div 
-                    ref={menuRef}
-                    className={styles.optionMenu}
-                    style={{ top: menuPosition.top, left: menuPosition.left }}
-                >
-                    <button
-                        className={styles.optionMenuItem}
-                        onClick={() => handleDeleteRegion(openMenuId)}
+                {openMenuId !== null && (
+                    <div 
+                        ref={menuRef}
+                        className={styles.optionMenu}
+                        style={{ top: menuPosition.top, left: menuPosition.left }}
                     >
-                        삭제
-                    </button>
-                </div>
-            )}
-        </aside>
+                        <button
+                            className={styles.optionMenuItem}
+                            onClick={() => handleDeleteRegion(openMenuId)}
+                        >
+                            삭제
+                        </button>
+                    </div>
+                )}
+            </aside>
+        </>
     );
 }

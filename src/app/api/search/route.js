@@ -6,7 +6,7 @@ import * as cheerio from 'cheerio';
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // 랜덤 딜레이 생성 (min ~ max ms)
-const getRandomDelay = (min = 3000, max = 5000) => {
+const getRandomDelay = (min = 3000, max = 8000) => {
     return Math.floor(Math.random() * (max - min + 1)) + min;
 };
 

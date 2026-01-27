@@ -202,6 +202,24 @@
     font-weight: 600;
 }
 
+/* 대기 지역 검색 버튼 */
+.searchPendingBtn {
+    font-size: 0.7rem;
+    color: #f59e0b;
+    background-color: rgba(245, 158, 11, 0.15);
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s;
+    border: none;
+}
+
+.searchPendingBtn:hover {
+    background-color: rgba(245, 158, 11, 0.3);
+    color: #fbbf24;
+}
+
 .list {
     display: flex;
     flex-direction: column;
@@ -212,6 +230,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-wrap: wrap;
     padding: 3px 12px 3px 12px;
     padding-right: 6px;
     background-color: rgba(255, 255, 255, 0.03);
@@ -224,7 +243,7 @@
 }
 
 .itemContent {
-    width: 100%;
+    width: 219px;
     height: 100%;
     padding-top: 3px;
     padding-left: 8px;
@@ -572,4 +591,190 @@
 
 .warningIcon {
     flex-shrink: 0;
+}
+
+/* 고정/제외 섹션 */
+.pinnedExcludedSection {
+    width: 100%;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--border);
+}
+
+.pinnedExcludedToggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 4px 8px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.pinnedExcludedToggle:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.pinnedExcludedInfo {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.pinnedInfo {
+    color: #f59e0b;
+    font-weight: 500;
+}
+
+.excludedInfo {
+    color: #ef4444;
+    font-weight: 500;
+}
+
+.pinnedExcludedList {
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.pinnedList,
+.excludedList {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.pinnedItem,
+.excludedItem {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+}
+
+.pinnedItem {
+    background-color: rgba(245, 158, 11, 0.1);
+    border-left: 2px solid #f59e0b;
+}
+
+.excludedItem {
+    background-color: rgba(239, 68, 68, 0.1);
+    border-left: 2px solid #ef4444;
+}
+
+.pinnedItemTitle,
+.excludedItemTitle {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-secondary);
+}
+
+.pinnedItemRemove,
+.excludedItemRemove {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    border-radius: 50%;
+    opacity: 0.6;
+    transition: all 0.2s;
+}
+
+.pinnedItemRemove:hover {
+    opacity: 1;
+    background-color: rgba(245, 158, 11, 0.2);
+    color: #f59e0b;
+}
+
+.excludedItemRemove:hover {
+    opacity: 1;
+    background-color: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+}
+
+/* 모바일 오버레이 */
+.sidebarOverlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    z-index: 999;
+    backdrop-filter: blur(2px);
+}
+
+.sidebarOverlay.visible {
+    display: block;
+}
+
+/* 모바일 닫기 버튼 */
+.mobileCloseBtn {
+    display: none;
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-secondary);
+    font-size: 1.2rem;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.mobileCloseBtn:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+    color: var(--foreground);
+}
+
+/* 모바일 반응형 */
+@media (max-width: 768px) {
+    .sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        height: 100vh;
+        max-height: 100vh;
+        z-index: 1000;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        border-radius: 0;
+        border-left: none;
+        border-top: none;
+        border-bottom: none;
+        padding-top: 56px;
+    }
+
+    .sidebar.open {
+        transform: translateX(0);
+    }
+
+    .mobileCloseBtn {
+        display: flex;
+    }
+
+    .sidebarOverlay.visible {
+        display: block;
+    }
 }
