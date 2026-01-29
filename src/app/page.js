@@ -33,6 +33,8 @@ export default function Home() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // 모바일 사이드바 상태
   const [excludedItems, setExcludedItems] = useState([]); // 제외된 아이템
   const searchAbortRef = useRef(null); // 검색 중단용
+  const [isSearchPaused, setIsSearchPaused] = useState(false); // 검색 일시중지 상태
+  const [pendingRegions, setPendingRegions] = useState([]); // 검색 대기 중인 지역들
 
   // Load saved state on mount
   useEffect(() => {
@@ -368,12 +370,69 @@ export default function Home() {
     return true;
   };
 
+  // 검색 중지 핸들러
+  const handleStopSearch = () => {
+    if (searchAbortRef.current) {
+      searchAbortRef.current.abort = true;
+    }
+    setIsSearchPaused(true);
+    setLoading(false);
+  };
+
+  // 검색 재개 핸들러 (남은 지역만 검색)
+  const handleResumeSearch = async () => {
+    if (pendingRegions.length === 0) return;
+
+    setIsSearchPaused(false);
+    setLoading(true);
+    searchAbortRef.current = { abort: false };
+
+    // 남은 지역들 순차 검색
+    for (let i = 0; i < pendingRegions.length; i++) {
+      // 중지 요청 확인
+      if (searchAbortRef.current?.abort) {
+        // 남은 지역 저장
+        setPendingRegions(pendingRegions.slice(i));
+        setIsSearchPaused(true);
+        setLoading(false);
+        return;
+      }
+
+      const region = pendingRegions[i];
+      await searchSingleRegion(region, keyword);
+      
+      // 마지막 요청이 아니면 딜레이
+      if (i < pendingRegions.length - 1) {
+        await delay(getRandomDelay(500, 1500));
+      }
+    }
+
+    setPendingRegions([]);
+    setLoading(false);
+  };
+
   const handleSearch = async (e) => {
     e && e.preventDefault();
+    
+    // 검색 중이면 중지
+    if (loading) {
+      handleStopSearch();
+      return;
+    }
+
+    // 일시중지 상태에서 클릭하면 재개
+    if (isSearchPaused && pendingRegions.length > 0) {
+      handleResumeSearch();
+      return;
+    }
+
     if (!validateSearch()) return;
 
     setValidationMessage(null); // 유효성 메시지 초기화
     setRateLimitMessage(null); // 제한 메시지 초기화
+    setIsSearchPaused(false);
+    setPendingRegions([]);
+    searchAbortRef.current = { abort: false };
 
     // 검색 시작 시 모든 지역을 pending 상태로 초기화
     const initialStatus = {};
@@ -397,17 +456,25 @@ export default function Home() {
 
     // 순차적으로 각 지역 검색
     for (let i = 0; i < selectedRegions.length; i++) {
+      // 중지 요청 확인
+      if (searchAbortRef.current?.abort) {
+        // 남은 지역 저장
+        setPendingRegions(selectedRegions.slice(i));
+        setIsSearchPaused(true);
+        setLoading(false);
+        return;
+      }
+
       const region = selectedRegions[i];
       await searchSingleRegion(region, keyword);
       
       // 마지막 요청이 아니면 딜레이
       if (i < selectedRegions.length - 1) {
-        // 캐시된 결과가 아니면 딜레이 적용 (캐시 체크 로직이 searchSingleRegion 내부에 있음)
-        // 여기서는 단순하게 유지하거나, searchSingleRegion의 반환값으로 캐시 여부를 판단할 수 있음
         await delay(getRandomDelay(500, 1500));
       }
     }
 
+    setPendingRegions([]);
     setLoading(false);
   };
 
@@ -511,8 +578,8 @@ export default function Home() {
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
             />
-            <button type="submit" className={styles.searchBtn} disabled={loading}>
-              {loading ? '검색중...' : '검색'}
+            <button type="submit" className={`${styles.searchBtn} ${loading ? styles.searchBtnStop : ''} ${isSearchPaused ? styles.searchBtnResume : ''}`}>
+              {loading ? '중지' : isSearchPaused && pendingRegions.length > 0 ? '재개' : '검색'}
             </button>
           </form>
           <button

@@ -102,6 +102,22 @@
   background-color: var(--primary-hover);
 }
 
+.searchBtnStop {
+  background-color: #ef4444;
+}
+
+.searchBtnStop:hover {
+  background-color: #dc2626;
+}
+
+.searchBtnResume {
+  background-color: #22c55e;
+}
+
+.searchBtnResume:hover {
+  background-color: #16a34a;
+}
+
 .addRegionBtn {
   background-color: var(--secondary);
   color: var(--text-secondary);
