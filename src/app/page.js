@@ -569,6 +569,14 @@ export default function Home() {
             onClose={() => setIsSidebarOpen(false)}
             excludedItems={excludedItems}
             onRemoveExclude={handleRemoveExclude}
+            onSearchRegion={(regionName) => {
+              setKeyword(regionName);
+              // 검색어 설정 후 검색 실행
+              setTimeout(() => {
+                const searchBtn = document.querySelector('button[type="submit"]');
+                if (searchBtn) searchBtn.click();
+              }, 0);
+            }}
           />
           <SearchResultsView
             searchResults={searchResults}

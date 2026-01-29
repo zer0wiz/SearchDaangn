@@ -76,7 +76,8 @@ export default function Sidebar({
     pinnedItems = [],
     excludedItems = [],
     onRemovePin,
-    onRemoveExclude
+    onRemoveExclude,
+    onSearchRegion
 }) {
     const [showIncludeInput, setShowIncludeInput] = useState(false);
     const [showExcludeInput, setShowExcludeInput] = useState(false);
@@ -234,6 +235,16 @@ export default function Sidebar({
 
     const handleDeleteRegion = (regionId) => {
         onRemove(regionId);
+        setOpenMenuId(null);
+    };
+
+    // 지역 이름으로 검색
+    const handleSearchRegion = (regionId) => {
+        const region = selectedRegions.find(r => r.id === regionId);
+        if (region && onSearchRegion) {
+            const regionName = region.name3 || region.name2 || region.name1;
+            onSearchRegion(regionName);
+        }
         setOpenMenuId(null);
     };
     // 선택된 지역들의 전체 건수 계산 (단일 항목만 합산, 그룹은 제외)
@@ -862,6 +873,12 @@ export default function Sidebar({
                         className={styles.optionMenu}
                         style={{ top: menuPosition.top, left: menuPosition.left }}
                     >
+                        <button
+                            className={styles.optionMenuItem}
+                            onClick={() => handleSearchRegion(openMenuId)}
+                        >
+                            검색
+                        </button>
                         <button
                             className={styles.optionMenuItem}
                             onClick={() => handleDeleteRegion(openMenuId)}
