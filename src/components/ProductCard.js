@@ -31,6 +31,37 @@ export default function ProductCard({
         e.stopPropagation();
         if (onExclude) onExclude(item);
     };
+
+    const handleCopyImage = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        try {
+            // 이미지를 canvas에 그려서 PNG로 변환
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            
+            await new Promise((resolve, reject) => {
+                img.onload = resolve;
+                img.onerror = reject;
+                img.src = item.img;
+            });
+
+            const canvas = document.createElement('canvas');
+            canvas.width = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+
+            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+            await navigator.clipboard.write([
+                new ClipboardItem({ 'image/png': blob })
+            ]);
+            alert('이미지가 클립보드에 복사되었습니다.');
+        } catch (err) {
+            console.error('이미지 복사 실패:', err);
+            alert('이미지 복사에 실패했습니다.');
+        }
+    };
     
     return (
         <a 
@@ -46,6 +77,14 @@ export default function ProductCard({
                         {statusInfo.label}
                     </div>
                 )}
+                {/* 호버 시 복사 버튼 (오른쪽 하단) */}
+                <button 
+                    className={styles.copyBtn}
+                    onClick={handleCopyImage}
+                    title="이미지 복사"
+                >
+                    ⧉
+                </button>
             </div>
             <div className={styles.content}>
                 <h3 className={styles.title}>{item.title}</h3>

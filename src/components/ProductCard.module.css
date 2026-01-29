@@ -144,6 +144,41 @@
     background-color: #ef4444;
 }
 
+/* 복사 버튼 - 오른쪽 하단, 호버 시에만 표시 */
+.copyBtn {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background-color: rgba(0, 0, 0, 0.6);
+    color: white;
+    font-size: 12px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s, background-color 0.2s, transform 0.1s;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.imageWrapper:hover .copyBtn {
+    opacity: 1;
+}
+
+.copyBtn:hover {
+    background-color: #3b82f6;
+    transform: scale(1.1);
+}
+
+.copyBtn:active {
+    transform: scale(0.95);
+}
+
 /* 작게 보기: 50% */
 .cardSmall .content {
     padding: 8px;
