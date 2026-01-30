@@ -98,6 +98,70 @@
     color: var(--text-secondary);
 }
 
+.labelWithTooltip {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.tooltipWrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    cursor: help;
+}
+
+.tooltipIcon {
+    color: var(--text-secondary);
+    opacity: 0.6;
+    transition: opacity 0.2s;
+}
+
+.tooltipWrapper:hover .tooltipIcon {
+    opacity: 1;
+    color: var(--primary);
+}
+
+.tooltipText {
+    visibility: hidden;
+    position: absolute;
+    bottom: 125%;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #2c2c35;
+    color: #fff;
+    text-align: center;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    white-space: normal;
+    width: 200px;
+    z-index: 1001;
+    opacity: 0;
+    transition: opacity 0.3s;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border);
+    pointer-events: none;
+    line-height: 1.4;
+}
+
+.tooltipWrapper:hover .tooltipText {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* 툴팁 화살표 */
+.tooltipText::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: #2c2c35 transparent transparent transparent;
+}
+
 .addBtn {
     width: 24px;
     height: 24px;
@@ -179,6 +243,53 @@
 
 .tagRemoveBtn:hover {
     opacity: 1;
+}
+
+/* 가격 조건 입력 */
+.priceRangeWrapper {
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.priceRangeInput {
+    flex: 1;
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background-color: rgba(255, 255, 255, 0.05);
+    color: var(--foreground);
+    font-size: 0.85rem;
+    outline: none;
+    transition: border-color 0.2s;
+    min-width: 0;
+    /* flex 자식 요소의 최소 너비 설정 */
+}
+
+.priceSeparator {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.priceRangeInput:focus {
+    border-color: var(--primary);
+}
+
+.priceRangeInput::placeholder {
+    color: var(--text-secondary);
+    opacity: 0.6;
+}
+
+.priceRangeHint {
+    margin-top: 6px;
+    font-size: 0.75rem;
+    color: var(--primary);
+    padding: 4px 8px;
+    background-color: rgba(155, 89, 182, 0.1);
+    border-radius: 4px;
+    display: inline-block;
 }
 
 .header {
@@ -282,6 +393,16 @@
     font-weight: 600;
 }
 
+.regionCount {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    background-color: rgba(223, 223, 223, 0.15);
+    margin-left: -7px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-weight: 600;
+}
+
 .input:checked+.text {
     color: var(--foreground);
     font-weight: 500;
@@ -377,6 +498,83 @@
     color: var(--primary);
 }
 
+.loadingWithStop {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background-color: rgba(255, 255, 255, 0.05);
+    padding: 2px 4px 2px 8px;
+    border-radius: 4px;
+}
+
+.stopRegionBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    background-color: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+}
+
+.stopRegionBtn:hover {
+    background-color: rgba(239, 68, 68, 0.2);
+    transform: scale(1.1);
+}
+
+.delayWithStop {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background-color: rgba(245, 158, 11, 0.1);
+    padding: 2px 4px 2px 8px;
+    border-radius: 4px;
+}
+
+.statusDelay {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: #f59e0b;
+}
+
+.delayText {
+    font-size: 0.7rem;
+    font-weight: 600;
+    font-family: monospace;
+    min-width: 20px;
+}
+
+.searchWithStop {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.stopRegionBtnSimple {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    border-radius: 4px;
+    color: #ef4444;
+    background: none;
+    border: none;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: all 0.2s;
+}
+
+.stopRegionBtnSimple:hover {
+    opacity: 1;
+    background-color: rgba(239, 68, 68, 0.1);
+    transform: scale(1.1);
+}
+
 .spinner {
     animation: spin 1s linear infinite;
 }
@@ -385,6 +583,7 @@
     from {
         transform: rotate(0deg);
     }
+
     to {
         transform: rotate(360deg);
     }
@@ -624,6 +823,9 @@
     display: flex;
     align-items: center;
     gap: 4px;
+    flex: 1;
+    justify-content: flex-end;
+    margin-right: 8px;
 }
 
 .pinnedInfo {

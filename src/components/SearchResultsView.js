@@ -25,12 +25,21 @@ const STATUS_MAP = {
   '판매완료': 'sold',
 };
 
+// 가격 필터링을 위한 숫자 변환 함수
+const parsePrice = (priceStr) => {
+  if (!priceStr) return null;
+  const num = parseInt(priceStr.toString().replace(/,/g, ''), 10);
+  return isNaN(num) ? null : num;
+};
+
 export default function SearchResultsView({
   searchResults,
   activeRegionIds,
   selectedRegions,
   includeTags,
   excludeTags,
+  minPrice = '',
+  maxPrice = '',
   statusFilters = ['ongoing', 'reserved', 'sold'],
   loading,
   hasSearched,
@@ -53,39 +62,53 @@ export default function SearchResultsView({
       // 제외 옵션에 따른 필터링
       if (excludeOption === 'hide' && isExcluded) return false;
       if (excludeOption === 'only' && !isExcluded) return false;
-      
+
       // 'all'일 경우 모두 표시 (단, 제외된 항목은 시각적으로 구분됨)
 
       // If originalRegion is missing for some reason, show it (fallback)
       if (!item.originalRegion) return true;
       // 타입 불일치 방지를 위해 문자열로 변환하여 비교
       const regionMatch = activeRegionIds.map(String).includes(String(item.originalRegion.id));
-      
+
       // 상태 필터 (항상 적용)
       const itemStatusKey = STATUS_MAP[item.status] || 'ongoing';
       if (!statusFilters.includes(itemStatusKey)) {
         return false;
       }
-      
-      // 포함할 단어 필터 (모든 단어가 제목 또는 내용에 포함되어야 함)
+
+      // 포함된 단어 필터 (모든 단어가 제목 또는 내용에 포함되어야 함)
+      const title = item.title?.toLowerCase() || '';
+      const content = item.content?.toLowerCase() || '';
+      const searchText = title + ' ' + content;
+
       if (includeTags.length > 0) {
-        const title = item.title?.toLowerCase() || '';
-        const content = item.content?.toLowerCase() || '';
-        const searchText = title + ' ' + content;
         const hasAllInclude = includeTags.every(tag => searchText.includes(tag.toLowerCase()));
         if (!hasAllInclude) return false;
-      }
-      // 제외할 단어 필터 (하나라도 제목 또는 내용에 포함되면 제외)
-      if (excludeTags.length > 0) {
-        const title = item.title?.toLowerCase() || '';
-        const content = item.content?.toLowerCase() || '';
-        const searchText = title + ' ' + content;
+
+        // 포함된 단어 조건이 만족되면 제외할 단어 필터를 건너뜀 (사용자 요청: 포함된 단어 우선순위)
+      } else if (excludeTags.length > 0) {
+        // 포함된 단어 조건이 없을 때만 제외할 단어 필터 적용
         const hasAnyExclude = excludeTags.some(tag => searchText.includes(tag.toLowerCase()));
         if (hasAnyExclude) return false;
       }
+
+      // 가격 범위 필터
+      const min = parsePrice(minPrice);
+      const max = parsePrice(maxPrice);
+      if (min !== null || max !== null) {
+        const itemPrice = item.priceRaw ?? (item.price ? parseInt(item.price.replace(/[^0-9]/g, ''), 10) : null);
+        if (itemPrice !== null && !isNaN(itemPrice)) {
+          if (min !== null && itemPrice < min) return false;
+          if (max !== null && itemPrice > max) return false;
+        } else {
+          // 가격 정보가 없는 아이템은 가격 필터 적용 시 제외
+          return false;
+        }
+      }
+
       return regionMatch;
     });
-  }, [searchResults, activeRegionIds, includeTags, excludeTags, statusFilters, excludedLinks, excludeOption]);
+  }, [searchResults, activeRegionIds, includeTags, excludeTags, minPrice, maxPrice, statusFilters, excludedLinks, excludeOption]);
 
   // 정렬 적용
   const sortedItems = useMemo(() => {
@@ -157,15 +180,15 @@ export default function SearchResultsView({
           </select>
         </label>
         <label className={styles.viewSizeLabel}>
-          제외 :
+          제외항목 :
           <select
             className={styles.viewSizeSelect}
             value={excludeOption}
             onChange={(e) => setExcludeOption(e.target.value)}
           >
-            <option value="hide">제외항목 미노출</option>
-            <option value="all">전체보기</option>
-            <option value="only">제외항목만 노출</option>
+            <option value="hide">미포함</option>
+            <option value="all">포함</option>
+            <option value="only">제외만</option>
           </select>
         </label>
         <span className={styles.resultCount}>
@@ -206,9 +229,9 @@ export default function SearchResultsView({
             <h3 className={styles.groupTitle}>{region.name3}</h3>
             <div className={gridClassName}>
               {items.map((item, idx) => (
-                <ProductCard 
-                  key={`${item.id}-${idx}`} 
-                  item={item} 
+                <ProductCard
+                  key={`${item.id}-${idx}`}
+                  item={item}
                   size={viewSize}
                   isExcluded={excludedLinks.has(item.link)}
                   onExclude={onExclude}
@@ -220,9 +243,9 @@ export default function SearchResultsView({
       ) : (
         <div className={gridClassName}>
           {sortedItems.map((item, idx) => (
-            <ProductCard 
-              key={`${item.id}-${idx}`} 
-              item={item} 
+            <ProductCard
+              key={`${item.id}-${idx}`}
+              item={item}
               size={viewSize}
               isExcluded={excludedLinks.has(item.link)}
               onExclude={onExclude}

@@ -1,3 +1,4 @@
+import { Copy, X as CloseIcon } from 'lucide-react';
 import styles from './ProductCard.module.css';
 
 // 상태값 매핑
@@ -16,8 +17,8 @@ const STATUS_INFO = {
     '판매완료': { label: '판매완료', className: 'statusSold' },
 };
 
-export default function ProductCard({ 
-    item, 
+export default function ProductCard({
+    item,
     size = 'medium',
     isExcluded = false,
     onExclude
@@ -39,7 +40,7 @@ export default function ProductCard({
             // 이미지를 canvas에 그려서 PNG로 변환
             const img = new Image();
             img.crossOrigin = 'anonymous';
-            
+
             await new Promise((resolve, reject) => {
                 img.onload = resolve;
                 img.onerror = reject;
@@ -62,12 +63,12 @@ export default function ProductCard({
             alert('이미지 복사에 실패했습니다.');
         }
     };
-    
+
     return (
-        <a 
-            href={item.link} 
-            target="_blank" 
-            rel="noopener noreferrer" 
+        <a
+            href={item.link}
+            target="_blank"
+            rel="noopener noreferrer"
             className={`${styles.card} ${sizeClass} ${isExcluded ? styles.excluded : ''}`}
         >
             <div className={styles.imageWrapper}>
@@ -78,12 +79,12 @@ export default function ProductCard({
                     </div>
                 )}
                 {/* 호버 시 복사 버튼 (오른쪽 하단) */}
-                <button 
+                <button
                     className={styles.copyBtn}
                     onClick={handleCopyImage}
                     title="이미지 복사"
                 >
-                    ⧉
+                    <Copy size={14} />
                 </button>
             </div>
             <div className={styles.content}>
@@ -96,12 +97,12 @@ export default function ProductCard({
             </div>
             {/* 호버 시 제외 버튼 (오른쪽 상단, CSS로 표시/숨김 제어) */}
             {hasActions && (
-                <button 
+                <button
                     className={`${styles.excludeBtn} ${isExcluded ? styles.excludeBtnActive : ''}`}
                     onClick={handleExcludeClick}
                     title={isExcluded ? '제외 취소' : '제외'}
                 >
-                    ✕
+                    <CloseIcon size={16} />
                 </button>
             )}
         </a>

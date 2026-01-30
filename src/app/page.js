@@ -8,6 +8,7 @@ import RegionPopup from '@/components/RegionPopup';
 import SearchResultsView from '@/components/SearchResultsView';
 import { getSelectedRegions, setSelectedRegions as saveCookie } from '@/utils/cookie';
 import { saveSearchState, getSearchState, getExcludedItems, saveExcludedItems } from '@/utils/storage';
+import { Loader2, Pause, Play, Square } from 'lucide-react';
 
 // 지역 상태: pending(대기), loading(로딩), completed(완료)
 // regionStatus: { [regionId]: { status: 'pending'|'loading'|'completed', completedAt: Date|null } }
@@ -26,6 +27,8 @@ export default function Home() {
   const [regionStatus, setRegionStatus] = useState({}); // 지역별 상태 관리
   const [includeTags, setIncludeTags] = useState([]); // 포함할 단어
   const [excludeTags, setExcludeTags] = useState([]); // 제외할 단어
+  const [minPrice, setMinPrice] = useState(''); // 최저 가격
+  const [maxPrice, setMaxPrice] = useState(''); // 최대 가격
   const [statusFilters, setStatusFilters] = useState(['ongoing']); // 상태 필터 (초기: 거래가능만)
   const [searchCache, setSearchCache] = useState({}); // 검색 캐시: { [cacheKey]: { items: [], timestamp: number } }
   const [rateLimitMessage, setRateLimitMessage] = useState(null); // 제한 메시지
@@ -35,6 +38,9 @@ export default function Home() {
   const searchAbortRef = useRef(null); // 검색 중단용
   const [isSearchPaused, setIsSearchPaused] = useState(false); // 검색 일시중지 상태
   const [pendingRegions, setPendingRegions] = useState([]); // 검색 대기 중인 지역들
+  const [delayStatus, setDelayStatus] = useState({ regionId: null, remaining: 0 }); // 현재 지연 중인 지역 상태
+  const regionAbortControllers = useRef(new Map()); // 지역별 AbortController 관리
+  const delayTimerRef = useRef(null); // 지연 타이머 관리용
 
   // Load saved state on mount
   useEffect(() => {
@@ -54,6 +60,8 @@ export default function Home() {
       if (savedState.lastSearchedOnlyAvailable !== undefined) setLastSearchedOnlyAvailable(savedState.lastSearchedOnlyAvailable);
       if (savedState.includeTags) setIncludeTags(savedState.includeTags);
       if (savedState.excludeTags) setExcludeTags(savedState.excludeTags);
+      if (savedState.minPrice !== undefined) setMinPrice(savedState.minPrice);
+      if (savedState.maxPrice !== undefined) setMaxPrice(savedState.maxPrice);
       if (savedState.statusFilters) setStatusFilters(savedState.statusFilters);
       if (savedState.activeRegionIds) setActiveRegionIds(savedState.activeRegionIds);
       if (savedState.regionStatus) setRegionStatus(savedState.regionStatus);
@@ -93,6 +101,8 @@ export default function Home() {
         lastSearchedOnlyAvailable,
         includeTags,
         excludeTags,
+        minPrice,
+        maxPrice,
         statusFilters,
         activeRegionIds,
         regionStatus,
@@ -107,6 +117,8 @@ export default function Home() {
     lastSearchedOnlyAvailable,
     includeTags,
     excludeTags,
+    minPrice,
+    maxPrice,
     statusFilters,
     activeRegionIds,
     regionStatus,
@@ -142,16 +154,23 @@ export default function Home() {
     return acc;
   }, {});
 
+  // 가격 필터링을 위한 숫자 변환 함수
+  const parsePrice = (priceStr) => {
+    if (!priceStr) return null;
+    const num = parseInt(priceStr.toString().replace(/,/g, ''), 10);
+    return isNaN(num) ? null : num;
+  };
+
   // 필터링된 결과 계산
   const filteredResults = searchResults.filter((item) => {
     if (!item.originalRegion) return true;
-    
+
     // 상태 필터
     const itemStatusKey = STATUS_MAP[item.status] || 'ongoing';
     if (!statusFilters.includes(itemStatusKey)) {
       return false;
     }
-    
+
     // 포함할 단어 필터
     if (includeTags.length > 0) {
       const title = item.title?.toLowerCase() || '';
@@ -160,7 +179,7 @@ export default function Home() {
       const hasAllInclude = includeTags.every(tag => searchText.includes(tag.toLowerCase()));
       if (!hasAllInclude) return false;
     }
-    
+
     // 제외할 단어 필터
     if (excludeTags.length > 0) {
       const title = item.title?.toLowerCase() || '';
@@ -169,7 +188,21 @@ export default function Home() {
       const hasAnyExclude = excludeTags.some(tag => searchText.includes(tag.toLowerCase()));
       if (hasAnyExclude) return false;
     }
-    
+
+    // 가격 범위 필터
+    const min = parsePrice(minPrice);
+    const max = parsePrice(maxPrice);
+    if (min !== null || max !== null) {
+      const itemPrice = item.priceRaw ?? (item.price ? parseInt(item.price.replace(/[^0-9]/g, ''), 10) : null);
+      if (itemPrice !== null && !isNaN(itemPrice)) {
+        if (min !== null && itemPrice < min) return false;
+        if (max !== null && itemPrice > max) return false;
+      } else {
+        // 가격 정보가 없는 아이템은 가격 필터 적용 시 제외
+        return false;
+      }
+    }
+
     return true;
   });
 
@@ -181,10 +214,15 @@ export default function Home() {
     return acc;
   }, {});
 
+  // 현재 검색 중인지 여부 (전체 검색 루프 중이거나 개별 지역이 로딩 중일 때)
+  const isSearching = loading || Object.values(regionStatus).some(s => s?.status === 'loading');
+
   const handleResetFilter = () => {
     // 검색결과 필터링만 초기화 (거래가능만 보기 제외)
     setIncludeTags([]);
     setExcludeTags([]);
+    setMinPrice('');
+    setMaxPrice('');
     // 상태 필터는 거래가능만 보기 상태에 따라 초기화
     if (showOnlyAvailable) {
       setStatusFilters(['ongoing']);
@@ -197,7 +235,7 @@ export default function Home() {
   const handleToggleAvailable = () => {
     const newValue = !showOnlyAvailable;
     setShowOnlyAvailable(newValue);
-    
+
     if (newValue) {
       // 체크됨: 상태 필터를 거래가능만 체크로 변경 (활성화 상태)
       setStatusFilters(['ongoing']);
@@ -219,6 +257,14 @@ export default function Home() {
 
   // 단일 지역 검색 함수
   const searchSingleRegion = async (region, searchKeyword, onlyOnSale = showOnlyAvailable) => {
+    // 기존 요청이 있으면 취소
+    if (regionAbortControllers.current.has(region.id)) {
+      regionAbortControllers.current.get(region.id).abort();
+    }
+
+    const controller = new AbortController();
+    regionAbortControllers.current.set(region.id, controller);
+
     const cacheKey = `${region.id}-${searchKeyword}-${onlyOnSale}`;
     const now = Date.now();
     const cached = searchCache[cacheKey];
@@ -257,6 +303,8 @@ export default function Home() {
         region,
         keyword: searchKeyword,
         onlyOnSale,
+      }, {
+        signal: controller.signal
       });
 
       const items = data.items || [];
@@ -281,13 +329,23 @@ export default function Home() {
 
       return items;
     } catch (err) {
-      console.error(`Error searching region ${region.name3}:`, err);
-      // 에러 시에도 완료 처리 (빈 결과)
+      if (axios.isCancel(err) || err.name === 'CanceledError') {
+        console.log(`Search for region ${region.name3} was canceled.`);
+      } else {
+        console.error(`Error searching region ${region.name3}:`, err);
+      }
+
+      // 취소되거나 에러 발생 시 대기 상태로 되돌림 (사용자가 다시 검색 버튼을 볼 수 있게)
       setRegionStatus(prev => ({
         ...prev,
-        [region.id]: { status: 'completed', completedAt: new Date(), error: true }
+        [region.id]: { status: 'pending', completedAt: null, error: !axios.isCancel(err) }
       }));
       return [];
+    } finally {
+      // 해당 지역의 컨트롤러 제거
+      if (regionAbortControllers.current.get(region.id) === controller) {
+        regionAbortControllers.current.delete(region.id);
+      }
     }
   };
 
@@ -325,7 +383,7 @@ export default function Home() {
       setValidationMessage('검색어를 먼저 입력해주세요.');
       return;
     }
-    
+
     const regionsToRefresh = selectedRegions.filter(r => regionIds.includes(r.id));
     if (regionsToRefresh.length === 0) return;
 
@@ -342,16 +400,43 @@ export default function Home() {
     for (let i = 0; i < regionsToRefresh.length; i++) {
       const region = regionsToRefresh[i];
       await searchSingleRegion(region, keyword);
-      
+
       // 마지막 요청이 아니면 딜레이
       if (i < regionsToRefresh.length - 1) {
-        await delay(getRandomDelay());
+        const nextRegionId = regionsToRefresh[i + 1].id;
+        const result = await delayWithStatus(getRandomDelay(), nextRegionId);
+        if (result === 'stopped') break; // 중지되면 루프 탈출
       }
     }
   };
 
-  // 지연 함수
-  const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+  // 지연 함수 (시각적 피드백 포함)
+  const delayWithStatus = (ms, regionId) => {
+    return new Promise(resolve => {
+      let remaining = Math.ceil(ms / 1000);
+      setDelayStatus({ regionId, remaining });
+
+      const interval = setInterval(() => {
+        remaining -= 1;
+        if (remaining <= 0) {
+          clearInterval(interval);
+          setDelayStatus({ regionId: null, remaining: 0 });
+          resolve();
+        } else {
+          setDelayStatus({ regionId, remaining });
+        }
+      }, 1000);
+
+      delayTimerRef.current = {
+        stop: () => {
+          clearInterval(interval);
+          setDelayStatus({ regionId: null, remaining: 0 });
+          resolve('stopped');
+        }
+      };
+    });
+  };
+
   const getRandomDelay = (min = 1500, max = 5000) => {
     return Math.floor(Math.random() * (max - min + 1)) + min;
   };
@@ -375,8 +460,41 @@ export default function Home() {
     if (searchAbortRef.current) {
       searchAbortRef.current.abort = true;
     }
+
+    // 현재 진행 중인 모든 개별 지역 검색 취소
+    regionAbortControllers.current.forEach(controller => controller.abort());
+    regionAbortControllers.current.clear();
+
+    // 지연 상태 초기화
+    if (delayTimerRef.current) {
+      delayTimerRef.current.stop();
+    }
+
     setIsSearchPaused(true);
     setLoading(false);
+  };
+
+  // 개별 지역 검색 중지 및 건너뛰기
+  const handleStopRegionSearch = (regionId) => {
+    // 지연 중인지 확인
+    if (delayStatus.regionId === regionId) {
+      if (delayTimerRef.current) {
+        delayTimerRef.current.stop();
+      }
+      return;
+    }
+
+    const controller = regionAbortControllers.current.get(regionId);
+    if (controller) {
+      controller.abort();
+      regionAbortControllers.current.delete(regionId);
+    } else {
+      // 아직 로딩 전(대기 중)이라면 상태만 변경
+      setRegionStatus(prev => ({
+        ...prev,
+        [regionId]: { status: 'pending', completedAt: null }
+      }));
+    }
   };
 
   // 검색 재개 핸들러 (남은 지역만 검색)
@@ -400,10 +518,15 @@ export default function Home() {
 
       const region = pendingRegions[i];
       await searchSingleRegion(region, keyword);
-      
+
       // 마지막 요청이 아니면 딜레이
       if (i < pendingRegions.length - 1) {
-        await delay(getRandomDelay(500, 1500));
+        const nextRegionId = pendingRegions[i + 1].id;
+        const result = await delayWithStatus(getRandomDelay(500, 1500), nextRegionId);
+        if (result === 'stopped') {
+          setPendingRegions(pendingRegions.slice(i + 1));
+          break;
+        }
       }
     }
 
@@ -413,14 +536,14 @@ export default function Home() {
 
   const handleSearch = async (e) => {
     e && e.preventDefault();
-    
-    // 검색 중이면 중지
-    if (loading) {
+
+    // 무엇이라도 검색 중이면 중지 행동 수행
+    if (isSearching) {
       handleStopSearch();
       return;
     }
 
-    // 일시중지 상태에서 클릭하면 재개
+    // 일시중지 상태에서 클릭하면 재개 (단, 현재 아무것도 검색 중이지 않을 때만)
     if (isSearchPaused && pendingRegions.length > 0) {
       handleResumeSearch();
       return;
@@ -448,7 +571,7 @@ export default function Home() {
     // 검색 시 현재 거래가능만 보기 상태 저장
     setLastSearchedOnlyAvailable(showOnlyAvailable);
     setNeedsResearch(false);
-    
+
     // 거래가능만 보기 해제 상태로 검색하면 상태 필터 전체 활성화
     if (!showOnlyAvailable) {
       setStatusFilters(['ongoing', 'reserved', 'sold']);
@@ -467,10 +590,15 @@ export default function Home() {
 
       const region = selectedRegions[i];
       await searchSingleRegion(region, keyword);
-      
+
       // 마지막 요청이 아니면 딜레이
       if (i < selectedRegions.length - 1) {
-        await delay(getRandomDelay(500, 1500));
+        const nextRegionId = selectedRegions[i + 1].id;
+        const result = await delayWithStatus(getRandomDelay(500, 1500), nextRegionId);
+        if (result === 'stopped') {
+          setPendingRegions(selectedRegions.slice(i + 1));
+          break;
+        }
       }
     }
 
@@ -517,7 +645,7 @@ export default function Home() {
   const handleExclude = (item) => {
     const itemLink = item.link;
     const isAlreadyExcluded = excludedItems.some(e => e.link === itemLink);
-    
+
     if (isAlreadyExcluded) {
       // 이미 제외된 경우 해제
       const newExcluded = excludedItems.filter(e => e.link !== itemLink);
@@ -578,8 +706,22 @@ export default function Home() {
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
             />
-            <button type="submit" className={`${styles.searchBtn} ${loading ? styles.searchBtnStop : ''} ${isSearchPaused ? styles.searchBtnResume : ''}`}>
-              {loading ? '중지' : isSearchPaused && pendingRegions.length > 0 ? '재개' : '검색'}
+            <button
+              type="submit"
+              className={`${styles.searchBtn} ${isSearching ? styles.searchBtnStop : ''} ${isSearchPaused ? styles.searchBtnResume : ''}`}
+              title={isSearching ? "클릭하여 검색 중지" : isSearchPaused ? "검색 재개" : ""}
+            >
+              {isSearching ? (
+                <div className={styles.searchBtnContent}>
+                  <Square size={14} fill="currentColor" />
+                  <span>검색중 ...</span>
+                </div>
+              ) : isSearchPaused && pendingRegions.length > 0 ? (
+                <div className={styles.searchBtnContent}>
+                  <Play size={18} />
+                  <span>재개</span>
+                </div>
+              ) : '검색'}
             </button>
           </form>
           <button
@@ -594,7 +736,7 @@ export default function Home() {
           <div className={styles.validationBanner}>
             <span className={styles.validationIcon}>⚠️</span>
             {validationMessage}
-            <button 
+            <button
               className={styles.validationClose}
               onClick={() => setValidationMessage(null)}
             >
@@ -606,7 +748,7 @@ export default function Home() {
         {rateLimitMessage && (
           <div className={styles.rateLimitBanner}>
             <span className={styles.rateLimitIcon}>⚠️</span>
-            {rateLimitMessage.message} 
+            {rateLimitMessage.message}
             <span className={styles.remainingTime}>(잔여 시간: {rateLimitMessage.remaining}초)</span>
           </div>
         )}
@@ -627,11 +769,17 @@ export default function Home() {
             excludeTags={excludeTags}
             onIncludeTagsChange={setIncludeTags}
             onExcludeTagsChange={setExcludeTags}
+            minPrice={minPrice}
+            onMinPriceChange={setMinPrice}
+            maxPrice={maxPrice}
+            onMaxPriceChange={setMaxPrice}
             statusFilters={statusFilters}
             onStatusFiltersChange={setStatusFilters}
             regionStatus={regionStatus}
+            delayStatus={delayStatus}
             onRefreshRegion={handleRefreshRegion}
             onRefreshRegions={handleRefreshRegions}
+            onStopRegionSearch={handleStopRegionSearch}
             isOpen={isSidebarOpen}
             onClose={() => setIsSidebarOpen(false)}
             excludedItems={excludedItems}
@@ -651,6 +799,8 @@ export default function Home() {
             selectedRegions={selectedRegions}
             includeTags={includeTags}
             excludeTags={excludeTags}
+            minPrice={minPrice}
+            maxPrice={maxPrice}
             statusFilters={statusFilters}
             loading={loading}
             hasSearched={hasSearched}
@@ -670,13 +820,13 @@ export default function Home() {
       )}
 
       {/* 모바일 메뉴 토글 버튼 */}
-      <button 
+      <button
         className={styles.mobileMenuBtn}
         onClick={() => setIsSidebarOpen(true)}
         aria-label="필터 메뉴 열기"
       >
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M3 6H21M3 12H21M3 18H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+          <path d="M3 6H21M3 12H21M3 18H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
         </svg>
       </button>
     </div>

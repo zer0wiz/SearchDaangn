@@ -118,6 +118,27 @@
   background-color: #16a34a;
 }
 
+.searchBtnContent {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .addRegionBtn {
   background-color: var(--secondary);
   color: var(--text-secondary);
@@ -309,6 +330,7 @@
     transform: translateY(-10px);
     opacity: 0;
   }
+
   to {
     transform: translateY(0);
     opacity: 1;
